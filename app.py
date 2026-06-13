@@ -111,43 +111,65 @@ def get_times(stylist_id, date_str):
 
 @app.route("/submit-booking", methods=["POST"])
 def submit_booking():
-    # 1. Capture Form Data (Added client_email)
+    # 1. Capture Form Data
     client_nom = request.form.get("client_nom")
-    client_tel = request.form.get("client_telephone")
+    client_telephone = request.form.get("client_telephone")
     client_email = request.form.get("client_email")
-    lieu = request.form.get("lieu_service")
-    adresse = request.form.get("client_adresse", "")
-    serv_id = request.form.get("service_id")
+    lieu_service = request.form.get("lieu_service")
+    client_adresse = request.form.get("client_adresse", "")
+    
+    service_id = request.form.get("service_id")
     stylist_id = request.form.get("stylist_id")
-    date = request.form.get("selected_date")
-    time = request.form.get("selected_time")
+    selected_date = request.form.get("selected_date")
+    selected_time = request.form.get("selected_time")
+
+    # 2. Map form data to your exact schema
+    transport_req = True if lieu_service == "domicile" else False
 
     conn = get_db_connection()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     try:
-        # Validate Price
-        cursor.execute("SELECT prix FROM coiffeuse_services WHERE coiffeuse_id = %s AND service_id = %s", (stylist_id, serv_id))
-        prix = cursor.fetchone()['prix']
+        # Get the exact price
+        cursor.execute("SELECT prix FROM coiffeuse_services WHERE coiffeuse_id = %s AND service_id = %s", (stylist_id, service_id))
+        prix_total = cursor.fetchone()['prix']
 
-        # Insert Booking (Including email)
+        # Look up the actual horaire_id using the date and time they picked
         cursor.execute("""
-            INSERT INTO rendezvous (client_nom, client_telephone, client_email, lieu_service, adresse, date_rendezvous, heure_rendezvous, statut, prix_final, coiffeuse_id, service_id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, 'En attente', %s, %s, %s)
+            SELECT id FROM horaires 
+            WHERE coiffeuse_id = %s AND date_jour = %s AND heure_debut = %s AND statut = 'Libre'
+        """, (stylist_id, selected_date, selected_time))
+        
+        horaire_row = cursor.fetchone()
+        if not horaire_row:
+            raise Exception("Ce créneau n'est plus disponible.")
+        
+        horaire_id = horaire_row['id']
+
+        # 3. Insert Booking using YOUR exact columns
+        cursor.execute("""
+            INSERT INTO rendezvous (
+                client_nom, client_email, client_telephone, client_adresse, 
+                coiffeuse_id, service_id, horaire_id, transport_req, prix_total, statut
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'En_Attente')
             RETURNING id;
-        """, (client_nom, client_tel, client_email, lieu, adresse, date, time, float(prix), stylist_id, serv_id))
+        """, (client_nom, client_email, client_telephone, client_adresse, stylist_id, service_id, horaire_id, transport_req, float(prix_total)))
         
         booking_id = cursor.fetchone()['id']
 
-        # Lock Slot
-        cursor.execute("""
-            UPDATE horaires SET statut = 'Reserve' 
-            WHERE coiffeuse_id = %s AND date_jour = %s AND heure_debut = %s
-        """, (stylist_id, date, time))
+        # 4. Lock the Slot using the ID
+        cursor.execute("UPDATE horaires SET statut = 'Reserve' WHERE id = %s", (horaire_id,))
         
         conn.commit()
         
-        # Fetch the record to show confirmation details
-        cursor.execute("SELECT * FROM rendezvous WHERE id = %s", (booking_id,))
+        # 5. Fetch the combined data to show on the confirmation page
+        cursor.execute("""
+            SELECT r.id, r.client_nom, r.prix_total as prix_final, 
+                   h.date_jour as date_rendezvous, h.heure_debut as heure_rendezvous
+            FROM rendezvous r
+            JOIN horaires h ON r.horaire_id = h.id
+            WHERE r.id = %s
+        """, (booking_id,))
         booking_data = dict(cursor.fetchone())
         
         return render_template("confirmation.html", booking=booking_data)
