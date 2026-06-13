@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="styles-container">
+    <div class="styles-header">
+        <h2>Catalogue : {{ category_name | default("Coiffure") }}</h2>
+        <p class="hero-subtitle">Explorez nos styles et trouvez votre inspiration.</p>
+    </div>
+
+    <div class="lookbook-grid">
+        
+        <!-- THE MAGIC LOOP: Fetches styles from the DB -->
+        {% for service in services %}
+        <a href="/booking/{{ service.id }}" class="style-tile">
+            <div class="tile-image">
+                <img src="{{ service.image_url }}" alt="{{ service.nom }}">
+                <div class="tile-overlay">
+                    <span class="overlay-text">Sélectionner</span>
+                </div>
+            </div>
+            <div class="tile-info">
+                <h3>{{ service.nom }}</h3>
+                <p>{{ service.description }}</p>
+            </div>
+        </a>
+        
+        {% else %}
+        <!-- WHAT SHOWS WHEN THE DB IS EMPTY -->
+        <div class="empty-state">
+            <p>Aucun style n'est disponible dans cette catégorie pour le moment.</p>
+            <p>Notre équipe met à jour le catalogue très bientôt !</p>
+        </div>
+        {% endfor %}
+
+    </div>
+</div>
+
+<style>
+.styles-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1rem;
+}
+
+.styles-header {
+    text-align: center;
+    margin-bottom: 3rem;
+}
+
+/* Empty State Styling */
+.empty-state {
+    grid-column: 1 / -1; /* Forces it to take up the whole row */
+    text-align: center;
+    padding: 4rem 2rem;
+    background: var(--bg-card);
+    border: 1px dashed rgba(197, 160, 89, 0.4);
+    border-radius: 8px;
+    color: var(--text-muted);
+}
+
+.empty-state p {
+    margin-bottom: 0.5rem;
+}
+
+/* Tighter, smaller grid optimized for many items */
+.lookbook-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 2rem;
+}
+
+.style-tile {
+    display: block;
+    background: var(--bg-card);
+    border: 1px solid rgba(197, 160, 89, 0.1);
+    border-radius: 6px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.style-tile:hover {
+    border-color: var(--gold-primary);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+}
+
+.tile-image {
+    width: 100%;
+    aspect-ratio: 4 / 5;
+    position: relative;
+    overflow: hidden;
+}
+
+.tile-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.5s ease;
+}
+
+.tile-overlay {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(10, 10, 10, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.style-tile:hover .tile-image img {
+    transform: scale(1.08);
+}
+
+.style-tile:hover .tile-overlay {
+    opacity: 1;
+}
+
+.overlay-text {
+    color: var(--gold-primary);
+    font-family: var(--font-body);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border: 1px solid var(--gold-primary);
+    padding: 8px 16px;
+    border-radius: 4px;
+}
+
+.tile-info {
+    padding: 1.2rem;
+    text-align: center;
+}
+
+.tile-info h3 {
+    font-size: 1.1rem;
+    color: var(--text-main);
+    margin-bottom: 0.5rem;
+}
+
+.tile-info p {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    line-height: 1.4;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+</style>
+{% endblock %}

@@ -1,0 +1,145 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="landing-container">
+    <div class="header-minimal">
+        <h1 class="hero-title">Besoin d'un service sans stress ?</h1>
+        <p class="hero-subtitle">Sélectionnez votre catégorie. L'expertise vient à vous.</p>
+    </div>
+
+    <div class="services-grid">
+        
+        {% for cat in categories %}
+            
+            {% if cat.statut == 'Active' %}
+            <a href="/services/{{ cat.slug }}" class="service-card active">
+                <div class="card-content">
+                    <h2>{{ cat.nom }}</h2>
+                    <p>{{ cat.description }}</p>
+                    <span class="action-text">Réserver ➔</span>
+                </div>
+            </a>
+            
+            {% else %}
+            <div class="service-card locked">
+                <div class="card-content">
+                    <h2>{{ cat.nom }}</h2>
+                    <p>{{ cat.description }}</p>
+                    <span class="status-badge">Bientôt disponible</span>
+                </div>
+            </div>
+            {% endif %}
+
+        {% endfor %}
+        
+    </div>
+</div>
+
+<style>
+/* Minimalist Layout */
+.landing-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 70vh;
+    text-align: center;
+    width: 100%;
+}
+
+.header-minimal {
+    margin-bottom: 4rem;
+}
+
+.hero-title {
+    font-size: 3.5rem;
+    margin-bottom: 0.5rem;
+    letter-spacing: 1px;
+}
+
+.hero-subtitle {
+    font-size: 1.2rem;
+    color: var(--text-muted);
+}
+
+/* Service Cards Grid */
+.services-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    width: 100%;
+    max-width: 1000px;
+}
+
+.service-card {
+    background-color: var(--bg-card);
+    border: 1px solid rgba(197, 160, 89, 0.2);
+    border-radius: 8px;
+    padding: 3rem 2rem;
+    transition: all 0.4s ease;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    
+    /* ADD THESE TWO LINES */
+    max-width: 400px; 
+    margin: 0 auto; 
+}
+
+.card-content h2 {
+    font-size: 1.8rem;
+    margin-bottom: 0.5rem;
+    color: var(--text-main);
+}
+
+.card-content p {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    margin-bottom: 2rem;
+}
+
+/* Active Interactive Card */
+.service-card.active {
+    cursor: pointer;
+    border-color: rgba(197, 160, 89, 0.5);
+}
+
+.service-card.active:hover {
+    transform: translateY(-5px);
+    border-color: var(--gold-primary);
+    box-shadow: 0 10px 30px rgba(197, 160, 89, 0.1);
+}
+
+.service-card.active .card-content h2 {
+    color: var(--gold-primary);
+}
+
+.action-text {
+    color: var(--gold-primary);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+}
+
+/* Locked / Future Cards */
+.service-card.locked {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background-color: rgba(22, 22, 22, 0.5);
+}
+
+.status-badge {
+    background-color: #222;
+    color: var(--text-muted);
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border: 1px solid #333;
+}
+</style>
+{% endblock %}

@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="confirmation-container">
+    <div class="success-icon">✓</div>
+    <h1 class="hero-title">Rendez-vous réservé !</h1>
+    <p class="hero-subtitle">Votre demande est en attente de confirmation.</p>
+
+    <div class="invoice-box">
+        <h3>Détails du rendez-vous</h3>
+        <div class="booking-summary">
+            <p><strong>Client:</strong> {{ booking.client_nom }}</p>
+            <p><strong>Date:</strong> {{ booking.date_rendezvous }} à {{ booking.heure_rendezvous }}</p>
+            <p><strong>Prix final:</strong> {{ booking.prix_final }} $</p>
+        </div>
+
+        <h3 class="mt-4">Action Requise : Dépôt de Sécurité</h3>
+        <p class="text-muted">Pour confirmer, veuillez envoyer un dépôt de 5$ par Interac :</p>
+        
+        <div class="interac-details">
+            <div class="detail-row"><span>Courriel:</span> <strong>paiement@worldconnect.ca</strong></div>
+            <div class="detail-row"><span>Réponse:</span> <strong>coiffure</strong></div>
+            <div class="detail-row"><span>Message:</span> <strong>RDV #{{ booking.id }}</strong></div>
+        </div>
+
+        <div class="warning-box">
+            ⚠️ <strong>Attention :</strong> Vous avez 1 heure pour effectuer ce virement avant que le créneau ne soit libéré.
+        </div>
+    </div>
+
+    <a href="/" class="btn-gold mt-4" style="display: inline-block;">Retour à l'accueil</a>
+</div>
+
+<style>
+.confirmation-container { max-width: 600px; margin: 4rem auto; text-align: center; padding: 0 1rem; }
+.success-icon { width: 70px; height: 70px; background: rgba(197, 160, 89, 0.15); color: var(--gold-primary); font-size: 2.5rem; line-height: 70px; border-radius: 50%; margin: 0 auto 2rem auto; border: 2px solid var(--gold-primary); }
+.invoice-box { background: var(--bg-card); padding: 2rem; border-radius: 8px; border: 1px solid rgba(197, 160, 89, 0.2); }
+.booking-summary { text-align: left; background: #111; padding: 1rem; border-radius: 4px; }
+.interac-details { background: #000; padding: 1rem; border-left: 3px solid var(--gold-primary); text-align: left; margin: 1rem 0; }
+.detail-row { display: flex; justify-content: space-between; padding: 5px 0; }
+.warning-box { margin-top: 1.5rem; padding: 1rem; background: rgba(255,0,0,0.1); border: 1px solid rgba(255,0,0,0.2); color: #ffbaba; font-size: 0.9rem; }
+</style>
+{% endblock %}
