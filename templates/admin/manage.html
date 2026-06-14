@@ -1,0 +1,184 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestion du Personnel | Coiff'Connect{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <div class="admin-header">
+        <div>
+            <h2>Gestion du <span class="gold-text">Personnel</span></h2>
+            <p>Ajoutez et gérez les coiffeuses de la plateforme.</p>
+        </div>
+        <div class="admin-actions">
+            <a href="/admin/dashboard" class="btn-outline">← Retour au Tableau</a>
+        </div>
+    </div>
+
+    <div class="manage-grid mt-4">
+        <div class="roster-section">
+            <h3>Équipe Actuelle</h3>
+            <div class="table-responsive">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nom (Alias)</th>
+                            <th>Téléphone</th>
+                            <th>Mobilité</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stylist in stylists %}
+                        <tr>
+                            <td>#{{ stylist.id }}</td>
+                            <td>
+                                <strong>{{ stylist.alias }}</strong><br>
+                                {% if stylist.adresse_studio %}
+                                    <small class="text-muted" style="font-size: 0.75rem;">📍 {{ stylist.adresse_studio }}</small>
+                                {% endif %}
+                            </td>
+                            <td>{{ stylist.telephone }}</td>
+                            <td>
+                                {% if stylist.deplacement_pref == 'domicile' %}
+                                    <span class="badge-domicile">À Domicile</span>
+                                {% elif stylist.deplacement_pref == 'studio' %}
+                                    <span class="badge-studio">En Studio</span>
+                                {% else %}
+                                    <span class="badge-both">Flexible</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <button onclick="openEditModal({{ stylist.id }}, '{{ stylist.alias }}', '{{ stylist.telephone }}', '{{ stylist.deplacement_pref }}', '{{ stylist.adresse_studio | default('', true) | escape }}')" class="btn-small btn-outline">Éditer</button>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5">Aucun membre dans l'équipe pour le moment.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="add-section">
+            <div class="form-card">
+                <h3>Ajouter un Opérateur</h3>
+                <form action="/admin/manage" method="POST">
+                    <div class="form-group">
+                        <label>Nom d'affichage</label>
+                        <input type="text" name="alias" class="form-input" required placeholder="Ex: Sarah la Pro">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Numéro de Téléphone</label>
+                        <input type="tel" name="telephone" class="form-input" required placeholder="819-555-0000">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Préférence de Déplacement</label>
+                        <select name="deplacement_pref" class="form-input" required>
+                            <option value="domicile">À Domicile uniquement</option>
+                            <option value="studio">En Studio uniquement</option>
+                            <option value="both">Flexible (Les deux)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Adresse du Studio</label>
+                        <input type="text" name="adresse_studio" class="form-input" placeholder="Laisser vide si 100% à domicile">
+                    </div>
+
+                    <button type="submit" class="btn-gold w-100 mt-2">Créer le Profil</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="editModal" class="modal">
+    <div class="modal-content form-card">
+        <span class="close-modal" onclick="closeEditModal()">&times;</span>
+        <h3 style="margin-top: 0;">Modifier le Profil</h3>
+        
+        <form id="editForm" method="POST">
+            <div class="form-group">
+                <label>Nom d'affichage</label>
+                <input type="text" id="edit_alias" name="alias" class="form-input" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Téléphone</label>
+                <input type="tel" id="edit_telephone" name="telephone" class="form-input" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Préférence de Déplacement</label>
+                <select id="edit_pref" name="deplacement_pref" class="form-input" required>
+                    <option value="domicile">À Domicile uniquement</option>
+                    <option value="studio">En Studio uniquement</option>
+                    <option value="both">Flexible (Les deux)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Adresse du Studio</label>
+                <input type="text" id="edit_adresse" name="adresse_studio" class="form-input" placeholder="Laisser vide si 100% à domicile">
+            </div>
+
+            <button type="submit" class="btn-gold w-100 mt-4">Sauvegarder les modifications</button>
+        </form>
+    </div>
+</div>
+
+<script>
+// Javascript to handle the modal popup and inject the specific stylist's data
+function openEditModal(id, alias, phone, pref, adresse) {
+    document.getElementById('editForm').action = '/admin/manage/edit/' + id;
+    document.getElementById('edit_alias').value = alias;
+    document.getElementById('edit_telephone').value = phone;
+    document.getElementById('edit_pref').value = pref;
+    document.getElementById('edit_adresse').value = adresse || ""; // Injects the address or leaves it blank
+    document.getElementById('editModal').style.display = 'flex';
+}
+
+function closeEditModal() {
+    document.getElementById('editModal').style.display = 'none';
+}
+
+// Close the modal if the user clicks anywhere outside of the box
+window.onclick = function(event) {
+    let modal = document.getElementById('editModal');
+    if (event.target == modal) {
+        modal.style.display = "none";
+    }
+}
+</script>
+
+<style>
+/* Extend standard admin styles */
+.admin-container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; }
+.admin-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(197, 160, 89, 0.3); padding-bottom: 1rem; }
+.manage-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 2rem; }
+.admin-table { width: 100%; border-collapse: collapse; background: var(--bg-card); border-radius: 8px; overflow: hidden; }
+.admin-table th, .admin-table td { padding: 1rem; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.admin-table th { background: rgba(0,0,0,0.2); color: var(--gold-primary); font-weight: 600; }
+.badge-domicile { background: rgba(197, 160, 89, 0.2); color: var(--gold-primary); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; }
+.badge-studio { background: rgba(255, 255, 255, 0.1); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; }
+.badge-both { background: rgba(40, 167, 69, 0.2); color: #28a745; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; }
+.form-card { background: var(--bg-card); padding: 2rem; border-radius: 8px; border: 1px solid rgba(197, 160, 89, 0.2); }
+.w-100 { width: 100%; }
+.text-muted { color: #888; }
+.btn-small { padding: 0.4rem 0.8rem; font-size: 0.85rem; cursor: pointer; transition: 0.3s; }
+
+/* Modal Styles */
+.modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; }
+.modal-content { width: 90%; max-width: 450px; position: relative; animation: slideDown 0.3s ease; }
+.close-modal { position: absolute; top: 15px; right: 20px; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; font-weight: bold; }
+.close-modal:hover { color: var(--gold-primary); }
+
+@keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@media (max-width: 768px) { .manage-grid { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}

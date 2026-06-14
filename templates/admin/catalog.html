@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+
+{% block title %}Catalogue des Services | Coiff'Connect{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <div class="admin-header">
+        <div>
+            <h2>Gestion du <span class="gold-text">Catalogue</span></h2>
+            <p>Ajoutez les styles et coupes visibles par les clients sur le site.</p>
+        </div>
+        <div class="admin-actions">
+            <a href="/admin/dashboard" class="btn-outline">← Retour au Tableau</a>
+        </div>
+    </div>
+
+    <div class="manage-grid mt-4">
+        <div class="add-section">
+            <div class="form-card">
+                <h3>Ajouter un Nouveau Style</h3>
+                <form action="/admin/catalog" method="POST" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label>Nom de la coupe/style</label>
+                        <input type="text" name="nom" class="form-input" required placeholder="Ex: Tresses Africaines (Knotless)">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Catégorie</label>
+                        <select name="categorie" class="form-input" required>
+                            <option value="" disabled selected>Choisir une catégorie...</option>
+                            {% for cat in categories %}
+                                <option value="{{ cat.slug }}">{{ cat.nom }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Photo du Style</label>
+                        <input type="file" name="image_file" class="form-input" accept="image/*">
+                        <small class="text-muted">Formats acceptés : JPG, PNG, WEBP.</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea name="description" class="form-input" rows="3" required placeholder="Description courte du style pour aider le client à choisir..."></textarea>
+                    </div>
+
+                    <button type="submit" class="btn-gold w-100 mt-2">Publier le Style</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="roster-section">
+            <h3>Styles Actuels dans la Base</h3>
+            <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+                <table class="admin-table">
+                    <thead style="position: sticky; top: 0; background: var(--bg-card); box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+                        <tr>
+                            <th>Image</th>
+                            <th>Nom & Catégorie</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for service in services %}
+                        <tr>
+                            <td style="width: 80px;">
+                                {% if service.image_url %}
+                                    <img src="{{ service.image_url }}" alt="{{ service.nom }}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px; border: 1px solid rgba(197, 160, 89, 0.3);">
+                                {% else %}
+                                    <div style="width: 60px; height: 60px; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; color: #666;">Aucune</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <strong>{{ service.nom }}</strong><br>
+                                <span class="badge-both" style="font-size: 0.7rem; display: inline-block; margin-top: 4px;">{{ service.categorie|upper }}</span>
+                            </td>
+                            <td><small class="text-muted" style="display: block; max-width: 250px;">{{ service.description }}</small></td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="3">Aucun service n'est encore enregistré dans le catalogue.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Core Admin Styles */
+.admin-container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; }
+.admin-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(197, 160, 89, 0.3); padding-bottom: 1rem; }
+.manage-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 2rem; }
+.admin-table { width: 100%; border-collapse: collapse; background: var(--bg-card); border-radius: 8px; }
+.admin-table th, .admin-table td { padding: 1rem; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.admin-table th { color: var(--gold-primary); font-weight: 600; }
+.badge-both { background: rgba(197, 160, 89, 0.1); color: var(--gold-primary); padding: 0.2rem 0.5rem; border-radius: 4px; border: 1px solid rgba(197, 160, 89, 0.3); }
+.form-card { background: var(--bg-card); padding: 2rem; border-radius: 8px; border: 1px solid rgba(197, 160, 89, 0.2); }
+.w-100 { width: 100%; }
+.text-muted { color: #aaa; }
+textarea.form-input { resize: vertical; font-family: inherit; }
+
+/* Upload Input Styling */
+input[type="file"] { padding: 0.5rem; background: rgba(0,0,0,0.2); border: 1px dashed rgba(197, 160, 89, 0.5); border-radius: 4px; color: var(--text-light); width: 100%; box-sizing: border-box; }
+input[type="file"]::-webkit-file-upload-button { background: var(--gold-primary); color: var(--bg-dark); border: none; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; margin-right: 1rem; font-weight: bold; }
+
+/* Scrollbar styling */
+.table-responsive::-webkit-scrollbar { width: 8px; }
+.table-responsive::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); border-radius: 4px; }
+.table-responsive::-webkit-scrollbar-thumb { background: rgba(197, 160, 89, 0.5); border-radius: 4px; }
+.table-responsive::-webkit-scrollbar-thumb:hover { background: rgba(197, 160, 89, 0.8); }
+
+@media (max-width: 768px) { .manage-grid { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}

@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="login-wrapper">
+    <div class="login-card">
+        <div class="login-header">
+            <h2>Accès <span class="gold-text">Opérateur</span></h2>
+            <p class="text-muted">Veuillez vous identifier pour accéder au portail.</p>
+        </div>
+
+        <form action="/admin/login" method="POST" class="login-form">
+            <div class="form-group">
+                <label>Adresse Courriel</label>
+                <input type="email" name="email" class="form-input" required placeholder="nom@worldconnect.ca">
+            </div>
+
+            <div class="form-group">
+                <label>Mot de passe</label>
+                <input type="password" name="password" class="form-input" required placeholder="••••••••">
+            </div>
+
+            <button type="submit" class="btn-gold submit-btn w-100 mt-4">Connexion</button>
+        </form>
+    </div>
+</div>
+
+<style>
+.login-wrapper { display: flex; justify-content: center; align-items: center; min-height: 60vh; }
+.login-card { background: var(--bg-card); padding: 3rem; border-radius: 8px; border: 1px solid rgba(197, 160, 89, 0.2); width: 100%; max-width: 450px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+.login-header { text-align: center; margin-bottom: 2.5rem; }
+.login-header h2 { font-size: 1.8rem; margin-bottom: 0.5rem; }
+.w-100 { width: 100%; }
+</style>
+{% endblock %}

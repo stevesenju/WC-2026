@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestion des Horaires | Coiff'Connect{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <div class="admin-header">
+        <div>
+            <h2>Gestion des <span class="gold-text">Horaires</span></h2>
+            <p>Générez et modifiez les blocs de disponibilité pour vos opérateurs.</p>
+        </div>
+        <div class="admin-actions">
+            <a href="/admin/dashboard" class="btn-outline">← Retour au Tableau</a>
+        </div>
+    </div>
+
+    <div class="manage-grid mt-4">
+        <!-- ADD SECTION -->
+        <div class="add-section">
+            <div class="form-card">
+                <h3>Générateur de Quart de Travail</h3>
+                <p class="text-muted" style="margin-bottom: 1.5rem; font-size: 0.9rem;">
+                    Sélectionnez les heures et la durée. Le système créera automatiquement les blocs.
+                </p>
+                
+                <form action="/admin/schedule" method="POST">
+                    <div class="form-group">
+                        <label>Opérateur</label>
+                        <select name="coiffeuse_id" class="form-input" required>
+                            <option value="" disabled selected>Choisir un profil...</option>
+                            {% for stylist in stylists %}
+                                <option value="{{ stylist.id }}">{{ stylist.alias }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Date de disponibilité</label>
+                        <input type="date" name="date_jour" class="form-input" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Durée d'un créneau</label>
+                        <select name="duree_minutes" class="form-input" required>
+                            <option value="30">30 minutes (Contour/Barbe)</option>
+                            <option value="60" selected>1 heure (Coupe Standard)</option>
+                            <option value="90">1 heure 30</option>
+                            <option value="120">2 heures</option>
+                            <option value="180">3 heures</option>
+                            <option value="240">4 heures</option>
+                            <option value="300">5 heures (Tresses/Coiffure Complexe)</option>
+                        </select>
+                    </div>
+                    
+                    <div style="display: flex; gap: 1rem;">
+                        <div class="form-group" style="flex: 1;">
+                            <label>Heure de début</label>
+                            <input type="time" name="heure_debut" class="form-input" required>
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label>Heure de fin</label>
+                            <input type="time" name="heure_fin" class="form-input" required>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-gold w-100 mt-2">Générer les créneaux</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- VIEW / EDIT SECTION -->
+        <div class="roster-section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 style="margin: 0;">Aperçu des créneaux</h3>
+                
+                <!-- NEW: Live Filter Dropdown -->
+                <select id="filter_stylist" class="form-input" style="width: auto; padding: 0.3rem 1rem; border-color: var(--gold-primary);" onchange="filterTable()">
+                    <option value="all">Tous les opérateurs</option>
+                    {% for stylist in stylists %}
+                        <option value="{{ stylist.id }}">{{ stylist.alias }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="table-responsive" style="max-height: 550px; overflow-y: auto;">
+                <table class="admin-table">
+                    <thead style="position: sticky; top: 0; background: var(--bg-card); box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+                        <tr>
+                            <th>Date</th>
+                            <th>Opérateur</th>
+                            <th>Heure</th>
+                            <th>Statut</th>
+                            <th style="text-align: right;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for slot in slots %}
+                        <!-- NEW: We tag the row with the stylist ID so JS can filter it -->
+                        <tr class="slot-row" data-stylist="{{ slot.coiffeuse_id }}">
+                            <td><strong>{{ slot.date_jour.strftime('%d/%m/%Y') }}</strong></td>
+                            <td>{{ slot.alias }}</td>
+                            <td>{{ slot.heure_debut.strftime('%H:%M') }} - {{ slot.heure_fin.strftime('%H:%M') }}</td>
+                            <td>
+                                {% if slot.statut == 'Libre' %}
+                                    <span class="badge-both">Libre</span>
+                                {% elif slot.statut == 'Reserve' %}
+                                    <span class="badge-domicile">Réservé</span>
+                                {% else %}
+                                    <span style="color: #666;">{{ slot.statut }}</span>
+                                {% endif %}
+                            </td>
+                            <td style="text-align: right;">
+                                <!-- NEW: Delete button only appears if the slot is Libre -->
+                                {% if slot.statut == 'Libre' %}
+                                <form action="/admin/schedule/delete/{{ slot.id }}" method="POST" style="display: inline;" onsubmit="return confirm('Supprimer ce créneau ?');">
+                                    <button type="submit" class="btn-delete" title="Supprimer ce créneau">✖</button>
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5">Aucun créneau prévu dans les prochains jours.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// NEW: Javascript to filter the table instantly
+function filterTable() {
+    var filter = document.getElementById("filter_stylist").value;
+    var rows = document.getElementsByClassName("slot-row");
+    
+    for (var i = 0; i < rows.length; i++) {
+        var stylistId = rows[i].getAttribute("data-stylist");
+        
+        if (filter === "all" || filter === stylistId) {
+            rows[i].style.display = ""; // Show
+        } else {
+            rows[i].style.display = "none"; // Hide
+        }
+    }
+}
+</script>
+
+<style>
+/* Core Admin Styles */
+.admin-container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; }
+.admin-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(197, 160, 89, 0.3); padding-bottom: 1rem; }
+.manage-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 2rem; } 
+.admin-table { width: 100%; border-collapse: collapse; background: var(--bg-card); border-radius: 8px; }
+.admin-table th, .admin-table td { padding: 1rem; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.admin-table th { color: var(--gold-primary); font-weight: 600; }
+.badge-domicile { background: rgba(197, 160, 89, 0.2); color: var(--gold-primary); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; }
+.badge-both { background: rgba(40, 167, 69, 0.2); color: #28a745; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; }
+.form-card { background: var(--bg-card); padding: 2rem; border-radius: 8px; border: 1px solid rgba(197, 160, 89, 0.2); }
+.w-100 { width: 100%; }
+.text-muted { color: #888; }
+
+/* NEW: Delete Button Styling */
+.btn-delete { background: transparent; color: #ff4c4c; border: 1px solid #ff4c4c; border-radius: 4px; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; font-size: 0.8rem; }
+.btn-delete:hover { background: #ff4c4c; color: white; }
+
+@media (max-width: 768px) { .manage-grid { grid-template-columns: 1fr; } }
+
+/* Scrollbar styling for the table container */
+.table-responsive::-webkit-scrollbar { width: 8px; }
+.table-responsive::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); border-radius: 4px; }
+.table-responsive::-webkit-scrollbar-thumb { background: rgba(197, 160, 89, 0.5); border-radius: 4px; }
+.table-responsive::-webkit-scrollbar-thumb:hover { background: rgba(197, 160, 89, 0.8); }
+</style>
+{% endblock %}

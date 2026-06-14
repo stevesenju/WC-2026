@@ -1,0 +1,242 @@
+{% extends 'base.html' %}
+
+{% block title %}Tableau de Bord | Coiff'Connect{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <div class="admin-header">
+        <div>
+            <h2>Centre de <span class="gold-text">Contrôle</span></h2>
+            <p>Gérez les réservations, validez les dépôts et suivez l'activité.</p>
+        </div>
+        <div class="admin-actions">
+            {% if role in ['SuperAdmin', 'Admin'] %}
+                <a href="/admin/manage" class="btn-outline">Personnel</a>
+                <a href="/admin/schedule" class="btn-outline">Horaires</a>
+                <a href="/admin/catalog" class="btn-outline">Catalogue</a>
+                <a href="/admin/assign-skills" class="btn-outline">Tarifs</a>
+            {% endif %}
+            <a href="/admin/logout" class="btn-gold">Déconnexion</a>
+        </div>
+    </div>
+
+    <div class="dashboard-tabs mt-4">
+        <button class="tab-btn active" onclick="openTab('pending')">En Attente (Dépôts)</button>
+        <button class="tab-btn" onclick="openTab('confirmed')">Confirmés (À Venir)</button>
+        <button class="tab-btn" onclick="openTab('history')">Historique / Annulés</button>
+    </div>
+
+    {% set pending = appointments | selectattr('statut', 'equalto', 'En_Attente') | list %}
+    {% set confirmed = appointments | selectattr('statut', 'equalto', 'Confirme') | list %}
+    {% set history = appointments | selectattr('statut', 'in', ['Annule', 'Termine']) | list %}
+
+    <div id="pending" class="tab-content active" style="display: block;">
+        <div class="appt-grid">
+            {% for appt in pending %}
+            <div class="appt-card pending-card">
+                <div class="appt-header">
+                    <span class="badge-warning">En Attente</span>
+                    <strong>{{ appt.date_jour.strftime('%d/%m/%Y') }} à {{ appt.heure_debut.strftime('%H:%M') }}</strong>
+                </div>
+                <div class="appt-body">
+                    <p><strong>Client:</strong> {{ appt.client_nom }} ({{ appt.client_telephone }})</p>
+                    <p><strong>Service:</strong> {{ appt.service_name }} ({{ appt.prix_total }}$)</p>
+                    {% if role in ['SuperAdmin', 'Admin'] %}<p><strong>Coiffeuse:</strong> {{ appt.stylist_name }}</p>{% endif %}
+                    
+                    {% if appt.transport_req %}
+                        <p style="color: var(--gold-primary);">📍 <strong>À Domicile:</strong> {{ appt.client_adresse }}</p>
+                    {% else %}
+                        <p>📍 En Studio</p>
+                    {% endif %}
+                    
+                    <div class="interac-check">
+                        <span>Code Interac attendu :</span>
+                        <strong class="code-display">{{ appt.code_interac }}</strong>
+                    </div>
+                </div>
+                
+                {% if role in ['SuperAdmin', 'Admin'] %}
+                <div class="appt-footer">
+                    <form action="/admin/confirm/{{ appt.id }}" method="POST" style="display:inline; flex: 1;">
+                        <button type="submit" class="btn-success w-100">Dépôt Reçu (Confirmer)</button>
+                    </form>
+                    <form action="/admin/cancel/{{ appt.id }}" method="POST" style="display:inline; flex: 1;" onsubmit="return confirm('Voulez-vous vraiment annuler ce rendez-vous ? La plage sera libérée.');">
+                        <button type="submit" class="btn-danger w-100">Annuler</button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+            {% else %}
+            <p class="text-muted">Aucun rendez-vous en attente de dépôt.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div id="confirmed" class="tab-content" style="display: none;">
+        <div class="appt-grid">
+            {% for appt in confirmed %}
+            <div class="appt-card confirmed-card">
+                <div class="appt-header">
+                    <span class="badge-success">Confirmé</span>
+                    <strong>{{ appt.date_jour.strftime('%d/%m/%Y') }} à {{ appt.heure_debut.strftime('%H:%M') }}</strong>
+                </div>
+                <div class="appt-body">
+                    <p><strong>Client:</strong> {{ appt.client_nom }} ({{ appt.client_telephone }})</p>
+                    <p><strong>Service:</strong> {{ appt.service_name }} (Reste à payer: {{ appt.prix_total - 5 }}$)</p>
+                    {% if role in ['SuperAdmin', 'Admin'] %}<p><strong>Coiffeuse:</strong> {{ appt.stylist_name }}</p>{% endif %}
+                    
+                    {% if appt.transport_req %}
+                        <p style="color: var(--gold-primary);">📍 <strong>À Domicile:</strong> {{ appt.client_adresse }}</p>
+                    {% else %}
+                        <p>📍 En Studio</p>
+                    {% endif %}
+                </div>
+                {% if role in ['SuperAdmin', 'Admin'] %}
+                <div class="appt-footer">
+                    <form action="/admin/cancel/{{ appt.id }}" method="POST" class="w-100" onsubmit="return confirm('Attention: Ce client a déjà payé un dépôt. Voulez-vous annuler ?');">
+                        <button type="submit" class="btn-danger w-100">Annuler & Libérer la place</button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+            {% else %}
+            <p class="text-muted">Aucun rendez-vous confirmé à venir.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div id="history" class="tab-content" style="display: none;">
+        <div class="table-responsive">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Client</th>
+                        <th>Service</th>
+                        <th>Statut</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for appt in history %}
+                    <tr style="opacity: 0.7;">
+                        <td>{{ appt.date_jour.strftime('%d/%m/%Y') }}</td>
+                        <td>{{ appt.client_nom }}</td>
+                        <td>{{ appt.service_name }}</td>
+                        <td>
+                            {% if appt.statut == 'Annule' %}
+                                <span style="color: #ff4c4c; font-weight: bold;">Annulé</span>
+                            {% else %}
+                                <span>{{ appt.statut }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="4">Aucun historique.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<script>
+// Simple JS to handle Tab Switching
+function openTab(tabName) {
+    var i, tabcontent, tablinks;
+    tabcontent = document.getElementsByClassName("tab-content");
+    for (i = 0; i < tabcontent.length; i++) {
+        tabcontent[i].style.display = "none";
+    }
+    tablinks = document.getElementsByClassName("tab-btn");
+    for (i = 0; i < tablinks.length; i++) {
+        tablinks[i].className = tablinks[i].className.replace(" active", "");
+    }
+    document.getElementById(tabName).style.display = "block";
+    event.currentTarget.className += " active";
+}
+</script>
+
+<style>
+/* Core Styles */
+.admin-container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; }
+.admin-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(197, 160, 89, 0.3); padding-bottom: 1rem; }
+.mt-4 { margin-top: 2rem; }
+.w-100 { width: 100%; }
+
+/* Button Styling for the Header Links */
+.admin-actions { 
+    display: flex; 
+    gap: 0.8rem; 
+    align-items: center; 
+    flex-wrap: wrap; 
+}
+
+.btn-outline {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    color: var(--gold-primary);
+    border: 1px solid var(--gold-primary);
+    border-radius: 4px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.btn-outline:hover {
+    background: var(--gold-primary);
+    color: var(--bg-dark, #111);
+}
+
+.btn-gold {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    background: var(--gold-primary);
+    color: var(--bg-dark, #111);
+    border: 1px solid var(--gold-primary);
+    border-radius: 4px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.btn-gold:hover {
+    filter: brightness(1.15);
+}
+
+/* Tab Navigation */
+.dashboard-tabs { display: flex; gap: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 2rem; }
+.tab-btn { background: none; border: none; color: #888; font-size: 1.1rem; padding: 0.5rem 1rem; cursor: pointer; transition: 0.3s; border-bottom: 3px solid transparent; }
+.tab-btn:hover { color: var(--text-light); }
+.tab-btn.active { color: var(--gold-primary); border-bottom: 3px solid var(--gold-primary); font-weight: bold; }
+
+/* Grid & Cards */
+.appt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 1.5rem; }
+.appt-card { background: var(--bg-card); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
+.pending-card { border: 1px solid rgba(255, 193, 7, 0.3); }
+.confirmed-card { border: 1px solid rgba(40, 167, 69, 0.3); }
+
+.appt-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: rgba(0,0,0,0.2); border-bottom: 1px solid rgba(255,255,255,0.05); }
+.badge-warning { background: rgba(255, 193, 7, 0.2); color: #ffc107; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
+.badge-success { background: rgba(40, 167, 69, 0.2); color: #28a745; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
+
+.appt-body { padding: 1.5rem; flex-grow: 1; line-height: 1.6; }
+.appt-body p { margin: 0.3rem 0; }
+
+.interac-check { margin-top: 1rem; background: rgba(197, 160, 89, 0.1); padding: 1rem; border-radius: 4px; border: 1px dashed var(--gold-primary); text-align: center; }
+.code-display { display: block; font-size: 1.5rem; font-family: monospace; letter-spacing: 2px; color: var(--gold-primary); margin-top: 0.5rem; }
+
+.appt-footer { display: flex; gap: 0.5rem; padding: 1rem; background: rgba(0,0,0,0.2); border-top: 1px solid rgba(255,255,255,0.05); }
+.btn-success { background: #28a745; color: white; border: none; padding: 0.8rem; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+.btn-success:hover { background: #218838; }
+.btn-danger { background: transparent; color: #ff4c4c; border: 1px solid #ff4c4c; padding: 0.8rem; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+.btn-danger:hover { background: #ff4c4c; color: white; }
+
+/* Table for History */
+.admin-table { width: 100%; border-collapse: collapse; background: var(--bg-card); border-radius: 8px; }
+.admin-table th, .admin-table td { padding: 1rem; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.admin-table th { color: var(--gold-primary); font-weight: 600; }
+</style>
+{% endblock %}

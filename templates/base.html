@@ -10,6 +10,16 @@
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
     
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <style>
+        /* Flash Messages Styles */
+        .flash-container { max-width: 800px; margin: 2rem auto 0 auto; padding: 0 1rem; }
+        .flash-message { padding: 1rem 1.5rem; border-radius: 6px; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; font-weight: 600; animation: slideDown 0.4s ease; }
+        .flash-success { background: rgba(197, 160, 89, 0.15); border: 1px solid var(--gold-primary); color: var(--gold-primary); }
+        .flash-error { background: rgba(255, 60, 60, 0.1); border: 1px solid #ff4444; color: #ffbbbb; }
+        .close-flash { background: none; border: none; color: inherit; font-size: 1.5rem; cursor: pointer; }
+        @keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    </style>
 </head>
 <body>
     <nav class="navbar">
@@ -26,6 +36,19 @@
     </nav>
 
     <main class="content-wrapper">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-container">
+                    {% for category, message in messages %}
+                        <div class="flash-message flash-{{ category }}">
+                            {{ message }}
+                            <button class="close-flash" onclick="this.parentElement.style.display='none';">&times;</button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
         {% block content %}
         {% endblock %}
     </main>
@@ -34,6 +57,12 @@
         <div class="footer-content">
             <p>&copy; 2026 World Connect - Rouyn. Tous droits réservés.</p>
             <p class="footer-tagline">Besoin d'une coiffure sans stress ? Le service vient à vous.</p>
+            
+            <div style="margin-top: 1.5rem;">
+                <a href="/admin/login" style="color: #666; text-decoration: none; font-size: 0.8rem; transition: 0.3s;" onmouseover="this.style.color='#C5A059'" onmouseout="this.style.color='#666'">
+                    🔒 Accès Professionnel
+                </a>
+            </div>
         </div>
     </footer>
 </body>

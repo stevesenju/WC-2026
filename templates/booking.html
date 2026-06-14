@@ -1,145 +1,184 @@
 {% extends 'base.html' %}
 
+{% block title %}Réserver | Coiff'Connect{% endblock %}
+
 {% block content %}
-<div class="booking-wrapper">
+<div class="booking-container">
     
     <div class="service-summary">
-        <img src="{{ service.image_url }}" alt="{{ service.nom }}" class="summary-img">
-        <div class="summary-details">
-            <h2><span class="gold-text">{{ service.nom }}</span></h2>
-            <p class="summary-desc">{{ service.description }}</p>
-        </div>
+        {% if service.image_url %}
+            <img src="{{ service.image_url }}" alt="{{ service.nom }}" class="service-img">
+        {% endif %}
+        <h2>{{ service.nom }}</h2>
+        <p class="text-muted">{{ service.description }}</p>
     </div>
 
-    <input type="hidden" id="current-service-id" value="{{ service.id }}">
-
-    <div class="booking-grid">
+    <div class="booking-form-card">
+        <h3>Compléter la réservation</h3>
         
-        <div class="booking-panel main-panel">
+        <form action="/submit-booking" method="POST" id="bookingForm">
+            <input type="hidden" name="service_id" value="{{ service.id }}">
             
-            <h3>1. Quand souhaitez-vous votre rendez-vous ?</h3>
-            <input type="date" id="booking-date" class="form-input date-picker mb-4">
+            <div class="form-group">
+                <label>Date du rendez-vous *</label>
+                <input type="date" name="selected_date" id="selected_date" class="form-input" required onchange="fetchStylists()">
+            </div>
 
-            <div id="stylist-section" style="display: none;">
-                <h3 class="mt-4">2. Professionnels disponibles</h3>
-                
-                <div id="exact-matches-container">
-                    </div>
+            <div class="form-group">
+                <label>Coiffeuse disponible *</label>
+                <select name="stylist_id" id="stylist_id" class="form-input" required disabled onchange="fetchTimes()">
+                    <option value="" disabled selected>Veuillez d'abord choisir une date</option>
+                </select>
+            </div>
 
-                <div id="close-matches-container" style="display: none; margin-top: 1.5rem;">
-                    <p class="text-muted text-small mb-2">Pas de chance ? Voici d'autres disponibilités proches :</p>
-                    <div id="close-matches-grid">
-                        </div>
+            <div class="form-group">
+                <label>Heure *</label>
+                <select name="selected_time" id="selected_time" class="form-input" required disabled>
+                    <option value="" disabled selected>Veuillez choisir une coiffeuse</option>
+                </select>
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid rgba(197, 160, 89, 0.3); margin: 2rem 0;">
+
+            <div class="form-group">
+                <label>Nom complet *</label>
+                <input type="text" name="client_nom" class="form-input" required placeholder="Ex: Jean Dupont">
+            </div>
+
+            <div style="display: flex; gap: 1rem;">
+                <div class="form-group" style="flex: 1;">
+                    <label>Téléphone *</label>
+                    <input type="tel" name="client_telephone" class="form-input" required placeholder="819-555-0000">
                 </div>
-
-                <div id="stylist-profile" class="stylist-profile-box mt-4" style="display: none;">
-                    <div class="profile-header">
-                        <span class="profile-price" id="display-price"></span>
-                        <span class="profile-mobility" id="display-mobility"></span>
-                    </div>
-                    <div class="portfolio-mini-grid" id="display-portfolio"></div>
+                <div class="form-group" style="flex: 1;">
+                    <label>Email *</label>
+                    <input type="email" name="client_email" class="form-input" required placeholder="jean@email.com">
                 </div>
             </div>
 
-            <div id="contact-section" style="display: none;">
-                <h3 class="mt-4">3. Vos Coordonnées</h3>
-                <form id="reservation-form" action="/submit-booking" method="POST">
-                    <input type="hidden" name="service_id" value="{{ service.id }}">
-                    <input type="hidden" name="stylist_id" id="hidden-stylist">
-                    <input type="hidden" name="selected_date" id="hidden-date">
-                    <input type="hidden" name="selected_time" id="hidden-time">
-
-                    <div class="form-row">
-                        <div class="form-group half">
-                            <label>Nom complet</label>
-                            <input type="text" name="client_nom" class="form-input" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Email</label>
-                            <input type="email" name="client_email" class="form-input" required placeholder="Ex: marie@exemple.com">
-                        </div>
-                        <div class="form-group half">
-                            <label>Téléphone</label>
-                            <input type="tel" name="client_telephone" class="form-input" required>
-                        </div>
-                    </div>
-
-                    <div class="form-group" id="location-group" style="display: none;">
-                        <label>Lieu du service</label>
-                        <select name="lieu_service" class="form-input" id="lieu-select">
-                            <option value="studio">Au Studio</option>
-                            <option value="domicile">À Domicile (+ Frais de transport)</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group" id="adresse-group" style="display: none;">
-                        <label>Votre adresse à Rouyn</label>
-                        <input type="text" name="client_adresse" class="form-input">
-                    </div>
-
-                    <button type="submit" class="btn-gold submit-btn" disabled id="confirm-btn">Confirmer : <span id="btn-price">--</span> $</button>
-                </form>
+            <div class="form-group mt-3">
+                <label>Lieu du rendez-vous *</label>
+                <select name="lieu_service" id="lieu_service" class="form-input" required onchange="toggleAddressField()">
+                    <option value="studio" selected>En Studio (Chez le coiffeur)</option>
+                    <option value="domicile">À Domicile (Je fournis mon adresse)</option>
+                </select>
             </div>
-        </div>
 
-        <div class="booking-panel side-panel" id="time-panel" style="opacity: 0.5; pointer-events: none;">
-            <h3>Créneaux du <span id="display-date">--</span></h3>
-            <div class="time-slots-container mt-4" id="time-slots">
-                <p class="text-muted text-small">Sélectionnez une date et un professionnel.</p>
+            <div class="form-group" id="address_group" style="display: none; background: rgba(197, 160, 89, 0.05); padding: 1rem; border-radius: 8px; border-left: 3px solid var(--gold-primary);">
+                <label>Votre adresse complète *</label>
+                <input type="text" name="client_adresse" id="client_adresse" class="form-input" placeholder="Ex: 123 Rue Principale, App 4, Val-d'Or">
+                <small class="text-muted" style="display: block; margin-top: 0.5rem;">* Des frais de déplacement supplémentaires peuvent s'appliquer.</small>
             </div>
-        </div>
 
+            <button type="submit" class="btn-gold w-100 mt-4" style="font-size: 1.1rem; padding: 1rem;">Réserver maintenant</button>
+        </form>
     </div>
 </div>
 
+<script>
+// 1. Prevent selecting past dates
+document.addEventListener('DOMContentLoaded', function() {
+    let today = new Date().toISOString().split('T')[0];
+    document.getElementById("selected_date").setAttribute('min', today);
+});
+
+// 2. Location Toggle Logic
+function toggleAddressField() {
+    var lieu = document.getElementById("lieu_service").value;
+    var addressGroup = document.getElementById("address_group");
+    var addressInput = document.getElementById("client_adresse");
+    
+    if (lieu === "domicile") {
+        addressGroup.style.display = "block";
+        addressInput.required = true;
+    } else {
+        addressGroup.style.display = "none";
+        addressInput.required = false;
+        addressInput.value = ""; // Clear it out if they change their mind
+    }
+}
+
+// 3. API Logic: Fetch Stylists when Date changes
+async function fetchStylists() {
+    const serviceId = "{{ service.id }}";
+    const dateStr = document.getElementById('selected_date').value;
+    const stylistSelect = document.getElementById('stylist_id');
+    const timeSelect = document.getElementById('selected_time');
+    
+    // Reset inputs
+    stylistSelect.innerHTML = '<option value="" disabled selected>Chargement...</option>';
+    stylistSelect.disabled = true;
+    timeSelect.innerHTML = '<option value="" disabled selected>Veuillez choisir une coiffeuse</option>';
+    timeSelect.disabled = true;
+
+    if (!dateStr) return;
+
+    try {
+        const response = await fetch(`/api/available-stylists/${serviceId}/${dateStr}`);
+        const data = await response.json();
+        
+        stylistSelect.innerHTML = '<option value="" disabled selected>Choisir une coiffeuse...</option>';
+        
+        // Exact Matches (Available on that exact date)
+        if (data.exact_matches.length > 0) {
+            data.exact_matches.forEach(s => {
+                stylistSelect.innerHTML += `<option value="${s.id}">${s.alias} (${s.prix}$)</option>`;
+            });
+            stylistSelect.disabled = false;
+        } else {
+            stylistSelect.innerHTML = '<option value="" disabled selected>Aucune coiffeuse disponible ce jour-là</option>';
+            // Optional: You could list the close_matches here as plain text suggestions
+        }
+    } catch (error) {
+        console.error("Error fetching stylists:", error);
+        stylistSelect.innerHTML = '<option value="" disabled selected>Erreur système</option>';
+    }
+}
+
+// 4. API Logic: Fetch Times when Stylist changes
+async function fetchTimes() {
+    const stylistId = document.getElementById('stylist_id').value;
+    const dateStr = document.getElementById('selected_date').value;
+    const timeSelect = document.getElementById('selected_time');
+    
+    timeSelect.innerHTML = '<option value="" disabled selected>Chargement...</option>';
+    timeSelect.disabled = true;
+
+    if (!stylistId) return;
+
+    try {
+        const response = await fetch(`/api/times/${stylistId}/${dateStr}`);
+        const data = await response.json();
+        
+        timeSelect.innerHTML = '<option value="" disabled selected>Choisir une heure...</option>';
+        
+        if (data.times.length > 0) {
+            data.times.forEach(t => {
+                timeSelect.innerHTML += `<option value="${t}">${t}</option>`;
+            });
+            timeSelect.disabled = false;
+        } else {
+            timeSelect.innerHTML = '<option value="" disabled selected>Complet pour cette date</option>';
+        }
+    } catch (error) {
+        console.error("Error fetching times:", error);
+        timeSelect.innerHTML = '<option value="" disabled selected>Erreur système</option>';
+    }
+}
+</script>
+
 <style>
-.booking-wrapper { max-width: 1200px; margin: 0 auto; padding-bottom: 3rem; }
-.gold-text { color: var(--gold-primary); }
-.mb-4 { margin-bottom: 2rem; }
-.mb-2 { margin-bottom: 0.5rem; }
-
-.service-summary { display: flex; align-items: center; gap: 2rem; background: var(--bg-card); padding: 1.5rem; border-radius: 8px; border: 1px solid rgba(197, 160, 89, 0.2); margin-bottom: 2rem; }
-.summary-img { width: 100px; height: 100px; object-fit: cover; border-radius: 6px; border: 2px solid var(--gold-primary); }
-.summary-details h2 { margin-bottom: 0.2rem; font-size: 1.5rem; }
-.summary-desc { color: var(--text-muted); font-size: 0.95rem; }
-
-.booking-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 2rem; }
-@media (max-width: 900px) { .booking-grid { grid-template-columns: 1fr; } }
-
-.booking-panel { background: var(--bg-card); padding: 2rem; border-radius: 8px; border: 1px solid rgba(197, 160, 89, 0.1); }
-h3 { font-size: 1.2rem; margin-bottom: 1rem; color: var(--text-main); border-bottom: 1px solid #333; padding-bottom: 0.5rem;}
+.booking-container { max-width: 1000px; margin: 3rem auto; padding: 0 1rem; display: grid; grid-template-columns: 1fr 1.5fr; gap: 3rem; }
+.service-summary { position: sticky; top: 2rem; }
+.service-img { width: 100%; height: 250px; object-fit: cover; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid rgba(197, 160, 89, 0.3); }
+.booking-form-card { background: var(--bg-card); padding: 2.5rem; border-radius: 8px; border: 1px solid rgba(197, 160, 89, 0.2); box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+.w-100 { width: 100%; }
+.mt-3 { margin-top: 1rem; }
 .mt-4 { margin-top: 2rem; }
-.text-muted { color: var(--text-muted); }
-.text-small { font-size: 0.85rem; }
-
-.form-row { display: flex; gap: 1rem; }
-.half { flex: 1; }
-.form-group { margin-bottom: 1.2rem; }
-label { display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #ccc; }
-.form-input { width: 100%; padding: 12px; background: #222; border: 1px solid #333; color: white; border-radius: 4px; font-family: var(--font-body); }
-.form-input:focus { outline: none; border-color: var(--gold-primary); }
-
-.stylist-btn { width: 100%; text-align: left; padding: 12px 16px; background: #222; border: 1px solid #333; color: white; cursor: pointer; border-radius: 4px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; transition: 0.3s; }
-.stylist-btn:hover { border-color: var(--gold-primary); }
-.stylist-btn.active { background: rgba(197, 160, 89, 0.15); border-color: var(--gold-primary); color: var(--gold-primary); font-weight: 600; }
-.close-match-badge { background: #333; color: #aaa; font-size: 0.75rem; padding: 3px 8px; border-radius: 12px; }
-
-.stylist-profile-box { background: #111; padding: 1.5rem; border-radius: 6px; border-left: 3px solid var(--gold-primary); margin-bottom: 2rem; }
-.profile-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-.profile-price { font-size: 1.4rem; color: var(--gold-primary); font-weight: 600; }
-.profile-mobility { font-size: 0.85rem; padding: 4px 10px; background: #222; border-radius: 20px; color: #aaa; }
-
-.portfolio-mini-grid { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 5px; }
-.portfolio-mini-grid img { width: 80px; height: 80px; object-fit: cover; border-radius: 4px; border: 1px solid #333; }
-
-.time-slots-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 10px; }
-.time-slot { padding: 10px; text-align: center; background: #222; border: 1px solid #333; cursor: pointer; border-radius: 4px; font-size: 0.9rem; transition: 0.2s; }
-.time-slot:hover { border-color: var(--gold-primary); }
-.time-slot.selected { background: var(--gold-primary); color: var(--bg-dark); font-weight: bold; }
-
-.submit-btn { width: 100%; font-size: 1.1rem; padding: 16px; margin-top: 1rem; }
-.submit-btn:disabled { background: #444; color: #888; cursor: not-allowed; }
+.text-muted { color: #aaa; line-height: 1.6; }
+@media (max-width: 768px) {
+    .booking-container { grid-template-columns: 1fr; }
+    .service-summary { position: relative; top: 0; }
+}
 </style>
-
-<script src="{{ url_for('static', filename='js/booking.js') }}"></script>
 {% endblock %}

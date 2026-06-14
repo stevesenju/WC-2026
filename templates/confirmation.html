@@ -1,43 +1,53 @@
 {% extends 'base.html' %}
 
+{% block title %}Réservation Confirmée | Coiff'Connect{% endblock %}
+
 {% block content %}
-<div class="confirmation-container">
-    <div class="success-icon">✓</div>
-    <h1 class="hero-title">Rendez-vous réservé !</h1>
-    <p class="hero-subtitle">Votre demande est en attente de confirmation.</p>
-
-    <div class="invoice-box">
-        <h3>Détails du rendez-vous</h3>
-        <div class="booking-summary">
-            <p><strong>Client:</strong> {{ booking.client_nom }}</p>
-            <p><strong>Date:</strong> {{ booking.date_rendezvous }} à {{ booking.heure_rendezvous }}</p>
-            <p><strong>Prix final:</strong> {{ booking.prix_final }} $</p>
-        </div>
-
-        <h3 class="mt-4">Action Requise : Dépôt de Sécurité</h3>
-        <p class="text-muted">Pour confirmer, veuillez envoyer un dépôt de 5$ par Interac :</p>
+<div style="max-width: 600px; margin: 3rem auto; padding: 2rem; background: var(--bg-card); border-radius: 8px; border: 1px solid rgba(197, 160, 89, 0.3); text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.4);">
+    
+    <div style="font-size: 3rem; margin-bottom: 1rem;">⏳</div>
+    <h2 class="gold-text">Demande Reçue !</h2>
+    <p>Merci <strong>{{ booking.client_nom }}</strong>. Votre demande de rendez-vous est enregistrée, mais elle n'est <strong style="color: #ff4c4c;">pas encore confirmée</strong>.</p>
+    
+    <div style="background: rgba(197, 160, 89, 0.05); border: 1px solid var(--gold-primary); padding: 2rem; border-radius: 8px; margin: 2.5rem 0; text-align: left; position: relative;">
         
-        <div class="interac-details">
-            <div class="detail-row"><span>Courriel:</span> <strong>paiement@worldconnect.ca</strong></div>
-            <div class="detail-row"><span>Réponse:</span> <strong>coiffure</strong></div>
-            <div class="detail-row"><span>Message:</span> <strong>RDV #{{ booking.id }}</strong></div>
+        <div style="position: absolute; top: -15px; left: 50%; transform: translateX(-50%); background: var(--bg-dark); border: 1px solid var(--gold-primary); padding: 0.2rem 1rem; border-radius: 20px; color: var(--gold-primary); font-weight: bold; font-size: 0.9rem;">
+            DÉPÔT REQUIS
         </div>
 
-        <div class="warning-box">
-            ⚠️ <strong>Attention :</strong> Vous avez 1 heure pour effectuer ce virement avant que le créneau ne soit libéré.
-        </div>
+        <p style="text-align: center; margin-bottom: 1.5rem; color: var(--text-light);">Pour bloquer définitivement votre place, un dépôt de <strong>5.00$</strong> est requis par virement Interac.</p>
+        
+        <ul style="list-style: none; padding: 0; font-size: 1.1rem; line-height: 2;">
+            <li><span style="color: var(--gold-primary);">Email Interac :</span> paiement@coiffconnect.com</li>
+            <li><span style="color: var(--gold-primary);">Montant :</span> 5.00$</li>
+            <li><span style="color: var(--gold-primary);">Message du virement (IMPORTANT) :</span> 
+                <br>
+                <div style="text-align: center; margin-top: 0.5rem;">
+                    <span style="background: var(--gold-primary); color: #000; padding: 0.5rem 1.5rem; border-radius: 4px; font-weight: bold; font-size: 1.5rem; font-family: monospace; letter-spacing: 4px; display: inline-block;">
+                        {{ booking.code_interac }}
+                    </span>
+                </div>
+            </li>
+        </ul>
+        <p style="font-size: 0.85rem; color: #ff4c4c; text-align: center; margin-top: 1.5rem; font-weight: 600;">
+             Si le code ci-dessus n'est pas dans le message du virement, nous ne pourrons pas valider votre rendez-vous.
+        </p>
     </div>
 
-    <a href="/" class="btn-gold mt-4" style="display: inline-block;">Retour à l'accueil</a>
-</div>
+    <div style="text-align: left; padding: 1.5rem; border-top: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); border-radius: 8px;">
+        <h4 style="margin-top: 0; margin-bottom: 1rem; color: var(--gold-primary);">Détails de votre réservation</h4>
+        
+        <p style="margin: 0.5rem 0;"> <strong>Date :</strong> {{ booking.date_rendezvous.strftime('%A %d %B %Y') }} à {{ booking.heure_rendezvous.strftime('%H:%M') }}</p>
+        
+        {% if booking.transport_req %}
+            <p style="margin: 0.5rem 0;">📍 <strong>Lieu :</strong> À Domicile ({{ booking.client_adresse }})</p>
+        {% else %}
+            <p style="margin: 0.5rem 0;">📍 <strong>Lieu :</strong> En Studio {% if booking.adresse_studio %}({{ booking.adresse_studio }}){% endif %}</p>
+        {% endif %}
+        
+        <p style="margin: 0.5rem 0;"> <strong>Prix total prévu :</strong> {{ booking.prix_final }}$ <span style="font-size: 0.85rem; color: #aaa;">(Le dépôt de 5$ sera déduit de ce montant lors du paiement final)</span></p>
+    </div>
 
-<style>
-.confirmation-container { max-width: 600px; margin: 4rem auto; text-align: center; padding: 0 1rem; }
-.success-icon { width: 70px; height: 70px; background: rgba(197, 160, 89, 0.15); color: var(--gold-primary); font-size: 2.5rem; line-height: 70px; border-radius: 50%; margin: 0 auto 2rem auto; border: 2px solid var(--gold-primary); }
-.invoice-box { background: var(--bg-card); padding: 2rem; border-radius: 8px; border: 1px solid rgba(197, 160, 89, 0.2); }
-.booking-summary { text-align: left; background: #111; padding: 1rem; border-radius: 4px; }
-.interac-details { background: #000; padding: 1rem; border-left: 3px solid var(--gold-primary); text-align: left; margin: 1rem 0; }
-.detail-row { display: flex; justify-content: space-between; padding: 5px 0; }
-.warning-box { margin-top: 1.5rem; padding: 1rem; background: rgba(255,0,0,0.1); border: 1px solid rgba(255,0,0,0.2); color: #ffbaba; font-size: 0.9rem; }
-</style>
+    <a href="/" class="btn-gold mt-4" style="display: inline-block; padding: 0.8rem 2rem; margin-top: 2rem;">Retour à l'accueil</a>
+</div>
 {% endblock %}
