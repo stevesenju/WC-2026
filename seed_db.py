@@ -44,20 +44,20 @@ def reset_and_seed():
         """, (alex_id, valid_service_id))
 
         # 4. Create the Accounts
-        admin_pw = generate_password_hash("admin123")
+        admin_pw = generate_password_hash("N3tw0rk541")
         barber_pw = generate_password_hash("alex123")
 
         cursor.execute("""
             INSERT INTO users (email, password_hash, role, coiffeuse_id)
             VALUES 
-            ('admin@worldconnect.ca', %s, 'SuperAdmin', NULL),
+            ('ktashastevebrayan@gmail.com', %s, 'SuperAdmin', NULL),
             ('alex@worldconnect.ca', %s, 'Stylist', %s);
         """, (admin_pw, barber_pw, alex_id))
 
         conn.commit()
         print("✅ Database successfully reset and seeded!")
         print("--------------------------------------------------")
-        print("👑 SuperAdmin Login: admin@worldconnect.ca | PW: admin123")
+        print("👑 SuperAdmin Login: ktashastevebrayan@gmail.com | PW: N3tw0rk541")
         print("✂️  Stylist Login:    alex@worldconnect.ca  | PW: alex123")
         print("--------------------------------------------------")
 
