@@ -44,15 +44,17 @@ def send_automated_email(to_email, subject, body_html, cc_admin=False):
     msg.attach(MIMEText(body_html, 'html'))
     
     try:
-        # Standard Gmail setup (Port 587)
-        server = smtplib.SMTP(os.getenv("SMTP_HOST", "smtp.gmail.com"), int(os.getenv("SMTP_PORT", 587)))
+        # Standard Gmail setup (Port 587) WITH STRICT 5-SECOND TIMEOUT
+        print("Attempting to connect to SMTP server...")
+        server = smtplib.SMTP(os.getenv("SMTP_HOST", "smtp.gmail.com"), int(os.getenv("SMTP_PORT", 587)), timeout=5)
         server.starttls()
         server.login(sender_email, sender_password)
         server.sendmail(sender_email, receivers, msg.as_string())
         server.quit()
+        print("Email sent successfully!")
         return True
     except Exception as e:
-        print(f"CRITICAL EMAIL ERROR: {e}")
+        print(f"CRITICAL EMAIL ERROR (Ignored to prevent crash): {e}")
         return False
 
 # --- PUBLIC ROUTES ---
