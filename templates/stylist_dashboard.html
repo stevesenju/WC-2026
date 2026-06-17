@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mon Calendrier - Coiff'Connect</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen text-gray-800">
+
+    <!-- Navigation -->
+    <nav class="bg-white shadow-sm py-4 border-b">
+        <div class="container mx-auto px-6 flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-gray-900">Coiff'Connect</h1>
+            <div class="flex items-center space-x-6">
+                <span class="text-gray-600 font-medium">Bonjour, {{ stylist_name }}</span>
+                <a href="{{ url_for('admin_logout') }}" class="text-red-500 font-semibold hover:text-red-600">Déconnexion</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-6 py-10">
+        
+        <div class="mb-8 border-b pb-4">
+            <h2 class="text-3xl font-bold">Mes Rendez-vous Confirmés</h2>
+            <p class="text-gray-500 mt-2">Consultez les détails de vos prochaines prestations. Les rendez-vous en attente de paiement ne s'affichent pas ici.</p>
+        </div>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="p-4 mb-6 rounded shadow-sm {{ 'bg-green-100 text-green-800' if category == 'success' else 'bg-red-100 text-red-800' }}">
+                {{ message }}
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <!-- Appointments Table -->
+        <div class="bg-white rounded-xl shadow-md overflow-hidden">
+            {% if appointments %}
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-100 text-gray-600 uppercase text-sm leading-normal border-b">
+                        <th class="py-4 px-6 font-semibold">Date & Heure</th>
+                        <th class="py-4 px-6 font-semibold">Client</th>
+                        <th class="py-4 px-6 font-semibold">Service</th>
+                        <th class="py-4 px-6 font-semibold">Lieu</th>
+                        <th class="py-4 px-6 font-semibold">Revenu</th>
+                        <th class="py-4 px-6 font-semibold">Statut</th>
+                    </tr>
+                </thead>
+                <tbody class="text-gray-700 text-sm">
+                    {% for appt in appointments %}
+                    <tr class="border-b hover:bg-gray-50 transition">
+                        <td class="py-4 px-6">
+                            <span class="font-bold block text-gray-900">{{ appt.date_jour.strftime('%d/%m/%Y') }}</span>
+                            <span class="text-gray-500">{{ appt.heure_debut.strftime('%H:%M') }}</span>
+                        </td>
+                        <td class="py-4 px-6">
+                            <span class="block font-semibold text-gray-800">{{ appt.client_nom }}</span>
+                            <span class="block text-gray-500">{{ appt.client_telephone }}</span>
+                        </td>
+                        <td class="py-4 px-6">
+                            <span class="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs font-medium">{{ appt.service_name }}</span>
+                        </td>
+                        <td class="py-4 px-6">
+                            {% if appt.transport_req %}
+                                <span class="text-blue-600 font-semibold flex items-center gap-1">
+                                    🚗 À Domicile
+                                </span>
+                                <span class="block text-xs text-gray-500 mt-1 max-w-[150px] truncate" title="{{ appt.client_adresse }}">
+                                    {{ appt.client_adresse }}
+                                </span>
+                            {% else %}
+                                <span class="text-amber-600 font-semibold flex items-center gap-1">
+                                    🏢 En Studio
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="py-4 px-6 font-bold text-gray-900">
+                            ${{ "%.2f"|format(appt.prix_total) }}
+                        </td>
+                        <td class="py-4 px-6">
+                            {% if appt.statut == 'Confirme' %}
+                                <span class="bg-green-100 text-green-700 font-bold px-3 py-1 rounded-full text-xs">Confirmé</span>
+                            {% elif appt.statut == 'Annule' %}
+                                <span class="bg-red-100 text-red-700 font-bold px-3 py-1 rounded-full text-xs">Annulé</span>
+                            {% elif appt.statut == 'Complete' %}
+                                <span class="bg-gray-200 text-gray-700 font-bold px-3 py-1 rounded-full text-xs">Terminé</span>
+                            {% else %}
+                                <span class="bg-gray-100 text-gray-500 font-bold px-3 py-1 rounded-full text-xs">{{ appt.statut }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="p-10 text-center text-gray-500">
+                <p class="text-lg">Vous n'avez aucun rendez-vous confirmé ou passé pour le moment.</p>
+            </div>
+            {% endif %}
+        </div>
+    </main>
+
+</body>
+</html>

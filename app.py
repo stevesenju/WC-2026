@@ -19,7 +19,7 @@ app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "super_secret_dev_key")
 
 UPLOAD_FOLDER = os.path.join('static', 'uploads', 'styles')
-os.makedirs(UPLOAD_FOLDER, exist_ok=True) # This auto-creates the folder so it doesn't crash
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 def get_db_connection():
@@ -29,7 +29,7 @@ def get_db_connection():
 def send_automated_email(to_email, subject, body_html, cc_admin=False):
     sender_email = os.getenv("SMTP_USER")
     sender_password = os.getenv("SMTP_PASSWORD")
-    admin_email = os.getenv("ADMIN_EMAIL") # Your master review email
+    admin_email = os.getenv("ADMIN_EMAIL")
     
     msg = MIMEMultipart()
     msg['From'] = f"Coiff'Connect <{sender_email}>"
@@ -37,14 +37,12 @@ def send_automated_email(to_email, subject, body_html, cc_admin=False):
     msg['Subject'] = subject
     
     receivers = [to_email]
-    # If it's a Confirm/Cancel, we add the admin to the receiver list
     if cc_admin and admin_email:
         receivers.append(admin_email)
         
     msg.attach(MIMEText(body_html, 'html'))
     
     try:
-        # Standard Gmail setup (Port 587) WITH STRICT 5-SECOND TIMEOUT
         print("Attempting to connect to SMTP server...")
         server = smtplib.SMTP(os.getenv("SMTP_HOST", "smtp.gmail.com"), int(os.getenv("SMTP_PORT", 587)), timeout=5)
         server.starttls()
@@ -150,7 +148,6 @@ def get_times(stylist_id, date_str):
 
 @app.route("/submit-booking", methods=["POST"])
 def submit_booking():
-    # 1. Capture Form Data
     client_nom = request.form.get("client_nom")
     client_telephone = request.form.get("client_telephone")
     client_email = request.form.get("client_email")
@@ -162,20 +159,15 @@ def submit_booking():
     selected_date = request.form.get("selected_date")
     selected_time = request.form.get("selected_time")
 
-    # 2. Map form data & Generate Interac Code
     transport_req = True if lieu_service == "domicile" else False
-    
-    # Generate a random 6-character code
     code_interac = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
     conn = get_db_connection()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     try:
-        # Get the exact price
         cursor.execute("SELECT prix FROM coiffeuse_services WHERE coiffeuse_id = %s AND service_id = %s", (stylist_id, service_id))
         prix_total = cursor.fetchone()['prix']
 
-        # Look up the actual horaire_id using the date and time
         cursor.execute("""
             SELECT id FROM horaires 
             WHERE coiffeuse_id = %s AND date_jour = %s AND heure_debut = %s AND statut = 'Libre'
@@ -187,7 +179,6 @@ def submit_booking():
         
         horaire_id = horaire_row['id']
 
-        # 3. Insert Booking with code_interac
         cursor.execute("""
             INSERT INTO rendezvous (
                 client_nom, client_email, client_telephone, client_adresse, 
@@ -199,12 +190,9 @@ def submit_booking():
         
         booking_id = cursor.fetchone()['id']
 
-        # 4. Lock the Slot
         cursor.execute("UPDATE horaires SET statut = 'Reserve' WHERE id = %s", (horaire_id,))
-        
         conn.commit()
         
-        # --- EMAIL TRIGGER 1: INITIAL BOOKING ---
         receipt_html = f"""
         <h2>Demande reçue, {client_nom} !</h2>
         <p>Votre demande de rendez-vous est enregistrée mais <strong>nécessite un dépôt de 5$</strong> pour être confirmée.</p>
@@ -213,9 +201,7 @@ def submit_booking():
         <p>Nous confirmerons votre rendez-vous dès réception du dépôt.</p>
         """
         send_automated_email(client_email, "Action Requise : Votre dépôt Coiff'Connect", receipt_html, cc_admin=False)
-        # ----------------------------------------
 
-        # 5. Fetch combined data to show on confirmation page
         cursor.execute("""
             SELECT r.id, r.client_nom, r.prix_total as prix_final, r.code_interac, r.transport_req, r.client_adresse,
                    h.date_jour as date_rendezvous, h.heure_debut as heure_rendezvous,
@@ -245,6 +231,9 @@ def submit_booking():
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
     if 'user_id' in session:
+        # Redirect based on role
+        if session.get('role') == 'Agent':
+            return redirect(url_for('stylist_dashboard'))
         return redirect(url_for('admin_dashboard'))
 
     if request.method == "POST":
@@ -264,6 +253,10 @@ def admin_login():
                 session['coiffeuse_id'] = user['coiffeuse_id']
                 
                 flash(f"Bienvenue, accès {user['role']} accordé.", "success")
+                
+                # Split traffic here
+                if user['role'] == 'Agent':
+                    return redirect(url_for('stylist_dashboard'))
                 return redirect(url_for('admin_dashboard'))
             else:
                 flash("Identifiants incorrects. Veuillez réessayer.", "error")
@@ -283,40 +276,68 @@ def admin_logout():
     flash("Vous avez été déconnecté en toute sécurité.", "success")
     return redirect(url_for('admin_login'))
 
+# --- STYLIST DASHBOARD (Independent) ---
+@app.route("/stylist/dashboard")
+def stylist_dashboard():
+    if 'user_id' not in session or session.get('role') != 'Agent':
+        flash("Accès refusé. Réservé aux opérateurs.", "error")
+        return redirect(url_for('admin_login'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    coiffeuse_id = session.get('coiffeuse_id')
+
+    try:
+        # Get Stylist Name
+        cursor.execute("SELECT alias FROM coiffeuses WHERE id = %s", (coiffeuse_id,))
+        stylist_row = cursor.fetchone()
+        stylist_name = stylist_row['alias'] if stylist_row else "Mon Profil"
+
+        # Fetch ONLY confirmed, cancelled, or completed appointments (hides pending deposits)
+        cursor.execute("""
+            SELECT r.id, r.client_nom, r.client_telephone, r.transport_req, r.client_adresse, r.prix_total, r.statut,
+                   h.date_jour, h.heure_debut, s.nom as service_name
+            FROM rendezvous r
+            JOIN horaires h ON r.horaire_id = h.id
+            JOIN services s ON r.service_id = s.id
+            WHERE r.coiffeuse_id = %s AND r.statut != 'En_Attente'
+            ORDER BY h.date_jour ASC, h.heure_debut ASC;
+        """, (coiffeuse_id,))
+        appointments = cursor.fetchall()
+        
+    except Exception as e:
+        print(f"Stylist Dashboard Error: {e}")
+        appointments = []
+        stylist_name = "Dashboard"
+        flash("Erreur lors du chargement des rendez-vous.", "error")
+    finally:
+        cursor.close()
+        conn.close()
+
+    return render_template("stylist_dashboard.html", appointments=appointments, stylist_name=stylist_name)
+
+# --- MASTER DASHBOARD ---
 @app.route("/admin/dashboard")
 def admin_dashboard():
-    if 'user_id' not in session:
-        flash("Veuillez vous connecter pour accéder au portail.", "error")
+    if 'user_id' not in session or session.get('role') not in ['SuperAdmin', 'Admin']:
+        flash("Accès refusé. Privilèges administratifs requis.", "error")
         return redirect(url_for('admin_login'))
 
     conn = get_db_connection()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     
     role = session.get('role')
-    coiffeuse_id = session.get('coiffeuse_id')
 
     try:
-        if role in ['SuperAdmin', 'Admin', 'Financial']:
-            cursor.execute("""
-                SELECT r.id, r.client_nom, r.client_telephone, r.transport_req, r.client_adresse, r.prix_total, r.statut, r.code_interac,
-                       h.date_jour, h.heure_debut, c.alias as stylist_name, s.nom as service_name
-                FROM rendezvous r
-                JOIN horaires h ON r.horaire_id = h.id
-                JOIN coiffeuses c ON r.coiffeuse_id = c.id
-                JOIN services s ON r.service_id = s.id
-                ORDER BY h.date_jour ASC, h.heure_debut ASC;
-            """)
-        else:
-            cursor.execute("""
-                SELECT r.id, r.client_nom, r.client_telephone, r.transport_req, r.client_adresse, r.prix_total, r.statut, r.code_interac,
-                       h.date_jour, h.heure_debut, s.nom as service_name
-                FROM rendezvous r
-                JOIN horaires h ON r.horaire_id = h.id
-                JOIN services s ON r.service_id = s.id
-                WHERE r.coiffeuse_id = %s
-                ORDER BY h.date_jour ASC, h.heure_debut ASC;
-            """, (coiffeuse_id,))
-            
+        cursor.execute("""
+            SELECT r.id, r.client_nom, r.client_telephone, r.transport_req, r.client_adresse, r.prix_total, r.statut, r.code_interac,
+                   h.date_jour, h.heure_debut, c.alias as stylist_name, s.nom as service_name
+            FROM rendezvous r
+            JOIN horaires h ON r.horaire_id = h.id
+            JOIN coiffeuses c ON r.coiffeuse_id = c.id
+            JOIN services s ON r.service_id = s.id
+            ORDER BY h.date_jour ASC, h.heure_debut ASC;
+        """)
         appointments = cursor.fetchall()
         
     except Exception as e:
@@ -339,7 +360,6 @@ def cancel_appointment(appt_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        # Fetch the horaire_id and email details before modifying the database
         cursor.execute("""
             SELECT r.horaire_id, r.client_nom, r.client_email, h.date_jour, h.heure_debut, c.alias, c.email as barber_email
             FROM rendezvous r
@@ -351,27 +371,19 @@ def cancel_appointment(appt_id):
         
         if details:
             horaire_id = details[0]
-            
-            # Free up the time slot
             cursor.execute("UPDATE horaires SET statut = 'Libre' WHERE id = %s;", (horaire_id,))
-            # Mark appointment as Cancelled
             cursor.execute("UPDATE rendezvous SET statut = 'Annule' WHERE id = %s;", (appt_id,))
             conn.commit()
             
-            # --- EMAIL TRIGGER 3: CANCELLATION ---
             date_str = details[3].strftime('%d/%m/%Y')
-            
-            # Email Client
             client_cancel = f"<h2>Rendez-vous Annulé</h2><p>Bonjour {details[1]}, votre rendez-vous du {date_str} a été annulé par l'administration. Si un dépôt a été payé, il vous sera remboursé sous peu.</p>"
             send_automated_email(details[2], "❌ Rendez-vous Annulé - Coiff'Connect", client_cancel, cc_admin=True)
             
-            # Email Barber
             if details[6]:
                 barber_cancel = f"<h2>Annulation de Rendez-vous</h2><p>Attention {details[5]}, le rendez-vous du {date_str} avec {details[1]} a été annulé. La plage horaire est de nouveau libre.</p>"
                 send_automated_email(details[6], "Annulation de RDV - Coiff'Connect", barber_cancel, cc_admin=False)
-            # ----------------------------------------
             
-            flash("Rendez-vous annulé. La plage horaire est de nouveau disponible pour les autres clients.", "success")
+            flash("Rendez-vous annulé. La plage horaire est de nouveau disponible.", "success")
         
     except Exception as e:
         conn.rollback()
@@ -386,18 +398,15 @@ def cancel_appointment(appt_id):
 @app.route("/admin/confirm/<int:appt_id>", methods=["POST"])
 def confirm_appointment(appt_id):
     if session.get('role') not in ['SuperAdmin', 'Admin']:
-        flash("Accès refusé. Vous n'avez pas l'autorisation de confirmer des dépôts.", "error")
+        flash("Accès refusé. Vous n'avez pas l'autorisation.", "error")
         return redirect(url_for('admin_dashboard'))
 
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        # Flip the status in the database
         cursor.execute("UPDATE rendezvous SET statut = 'Confirme' WHERE id = %s;", (appt_id,))
         conn.commit()
         
-        # --- EMAIL TRIGGER 2: CONFIRMATION ---
-        # Fetch the details we need for the email
         cursor.execute("""
             SELECT r.client_nom, r.client_email, h.date_jour, h.heure_debut, c.alias, c.email as barber_email
             FROM rendezvous r
@@ -411,15 +420,12 @@ def confirm_appointment(appt_id):
             date_str = details[2].strftime('%d/%m/%Y')
             time_str = details[3].strftime('%H:%M')
             
-            # Email to Client
             client_html = f"<h2>Rendez-vous Confirmé !</h2><p>Bonjour {details[0]}, votre dépôt a été reçu.</p><p>Votre rendez-vous avec {details[4]} est confirmé pour le <strong>{date_str} à {time_str}</strong>.</p><p><em>Pour annuler, veuillez nous contacter au moins 24h à l'avance.</em></p>"
             send_automated_email(details[1], "✅ Rendez-vous Confirmé - Coiff'Connect", client_html, cc_admin=True)
             
-            # Email to Barber
-            if details[5]: # If barber has an email registered
-                barber_html = f"<h2>Nouveau Rendez-vous !</h2><p>Le client {details[0]} a confirmé son rendez-vous avec vous pour le <strong>{date_str} à {time_str}</strong>.</p><p>Connectez-vous au portail pour voir les détails complets (Adresse, Numéro).</p>"
+            if details[5]:
+                barber_html = f"<h2>Nouveau Rendez-vous !</h2><p>Le client {details[0]} a confirmé son rendez-vous avec vous pour le <strong>{date_str} à {time_str}</strong>.</p><p>Connectez-vous au portail pour voir les détails complets.</p>"
                 send_automated_email(details[5], f"Nouveau RDV le {date_str} - Coiff'Connect", barber_html, cc_admin=False)
-        # ----------------------------------------
         
         flash("Rendez-vous confirmé avec succès ! Le statut a été mis à jour.", "success")
         
@@ -436,7 +442,7 @@ def confirm_appointment(appt_id):
 @app.route("/admin/manage", methods=["GET", "POST"])
 def admin_manage():
     if session.get('role') not in ['SuperAdmin', 'Admin']:
-        flash("Accès refusé. Vous n'avez pas l'autorisation de gérer le personnel.", "error")
+        flash("Accès refusé.", "error")
         return redirect(url_for('admin_dashboard'))
 
     conn = get_db_connection()
@@ -445,7 +451,7 @@ def admin_manage():
     if request.method == "POST":
         alias = request.form.get("alias")
         telephone = request.form.get("telephone")
-        email = request.form.get("email") # NEW EMAIL FIELD
+        email = request.form.get("email")
         pref = request.form.get("deplacement_pref")
         adresse_studio = request.form.get("adresse_studio", "")
 
@@ -458,7 +464,7 @@ def admin_manage():
             flash(f"L'opérateur {alias} a été ajouté avec succès !", "success")
         except psycopg2.errors.UniqueViolation:
             conn.rollback()
-            flash("Ce nom d'affichage (alias) existe déjà. Veuillez en choisir un autre.", "error")
+            flash("Ce nom d'affichage existe déjà.", "error")
         except Exception as e:
             conn.rollback()
             print(f"Error adding stylist: {e}")
@@ -481,12 +487,12 @@ def admin_manage():
 @app.route("/admin/manage/edit/<int:stylist_id>", methods=["POST"])
 def edit_stylist(stylist_id):
     if session.get('role') not in ['SuperAdmin', 'Admin']:
-        flash("Accès refusé. Vous n'avez pas l'autorisation de modifier le personnel.", "error")
+        flash("Accès refusé.", "error")
         return redirect(url_for('admin_dashboard'))
 
     alias = request.form.get("alias")
     telephone = request.form.get("telephone")
-    email = request.form.get("email") # NEW EMAIL FIELD
+    email = request.form.get("email")
     pref = request.form.get("deplacement_pref")
     adresse_studio = request.form.get("adresse_studio", "")
 
@@ -500,14 +506,13 @@ def edit_stylist(stylist_id):
         """, (alias, telephone, email, pref, adresse_studio, stylist_id))
         conn.commit()
         flash("Le profil a été mis à jour avec succès !", "success")
-        
     except psycopg2.errors.UniqueViolation:
         conn.rollback()
-        flash("Erreur: Ce nom d'affichage est déjà pris par un autre opérateur.", "error")
+        flash("Erreur: Ce nom est déjà pris.", "error")
     except Exception as e:
         conn.rollback()
         print(f"Update Error: {e}")
-        flash("Erreur lors de la mise à jour du profil.", "error")
+        flash("Erreur lors de la mise à jour.", "error")
     finally:
         cursor.close()
         conn.close()
@@ -517,7 +522,7 @@ def edit_stylist(stylist_id):
 @app.route("/admin/schedule", methods=["GET", "POST"])
 def admin_schedule():
     if session.get('role') not in ['SuperAdmin', 'Admin']:
-        flash("Accès refusé. Autorisation requise.", "error")
+        flash("Accès refusé.", "error")
         return redirect(url_for('admin_dashboard'))
 
     conn = get_db_connection()
@@ -536,12 +541,10 @@ def admin_schedule():
             
             slot_duration = timedelta(minutes=duree_minutes)
             current_time = start_dt
-            
             slots_created = 0
             
             while current_time + slot_duration <= end_dt:
                 slot_end = current_time + slot_duration
-                
                 h_deb_str = current_time.strftime("%H:%M:%S")
                 h_fin_str = slot_end.strftime("%H:%M:%S")
                 
@@ -560,12 +563,12 @@ def admin_schedule():
                 current_time += slot_duration
                 
             conn.commit()
-            flash(f"Succès ! {slots_created} créneaux de {duree_minutes} minutes ont été générés.", "success")
+            flash(f"Succès ! {slots_created} créneaux générés.", "success")
 
         except Exception as e:
             conn.rollback()
-            print(f"Schedule Generator Error: {e}")
-            flash("Erreur lors de la génération de l'horaire.", "error")
+            print(f"Schedule Error: {e}")
+            flash("Erreur lors de la génération.", "error")
             
         return redirect(url_for('admin_schedule'))
 
@@ -606,12 +609,12 @@ def admin_delete_slot(slot_id):
         if row and row[0] == 'Libre':
             cursor.execute("UPDATE horaires SET statut = 'Supprime' WHERE id = %s", (slot_id,))
             conn.commit()
-            flash("Le créneau a été retiré de l'horaire.", "success")
+            flash("Le créneau a été retiré.", "success")
         else:
-            flash("Impossible de supprimer un créneau réservé. Annulez le rendez-vous d'abord.", "error")
+            flash("Impossible de supprimer un créneau réservé.", "error")
     except Exception as e:
         conn.rollback()
-        print(f"Delete Slot Error: {e}")
+        print(f"Delete Error: {e}")
         flash("Erreur lors de la suppression.", "error")
     finally:
         cursor.close()
@@ -622,7 +625,7 @@ def admin_delete_slot(slot_id):
 @app.route("/admin/catalog", methods=["GET", "POST"])
 def admin_catalog():
     if session.get('role') not in ['SuperAdmin', 'Admin']:
-        flash("Accès refusé. Autorisation requise.", "error")
+        flash("Accès refusé.", "error")
         return redirect(url_for('admin_dashboard'))
 
     conn = get_db_connection()
@@ -648,23 +651,18 @@ def admin_catalog():
                     VALUES (%s, %s, %s, %s)
                 """, (nom, description, categorie_slug, image_url))
             conn.commit()
-            flash(f"Le service '{nom}' a été ajouté au catalogue avec succès !", "success")
+            flash(f"Le service a été ajouté !", "success")
         except Exception as e:
             conn.rollback()
-            print(f"Catalog Insertion Error: {e}")
-            flash("Erreur lors de l'ajout du service.", "error")
+            print(f"Catalog Error: {e}")
+            flash("Erreur lors de l'ajout.", "error")
             
         return redirect(url_for('admin_catalog'))
 
     try:
         cursor.execute("SELECT nom, slug FROM categories ORDER BY id;")
         categories = cursor.fetchall()
-
-        cursor.execute("""
-            SELECT id, nom, categorie, description, image_url 
-            FROM services 
-            ORDER BY categorie, nom;
-        """)
+        cursor.execute("SELECT id, nom, categorie, description, image_url FROM services ORDER BY categorie, nom;")
         services = cursor.fetchall()
     except Exception as e:
         print(f"Fetch Error: {e}")
@@ -698,7 +696,7 @@ def admin_assign_skills():
                 DO UPDATE SET prix = EXCLUDED.prix;
             """, (coiffeuse_id, service_id, prix))
             conn.commit()
-            flash("Tarif et compétence mis à jour avec succès !", "success")
+            flash("Compétence mise à jour !", "success")
         except Exception as e:
             conn.rollback()
             print(f"Assign Error: {e}")
@@ -708,10 +706,8 @@ def admin_assign_skills():
 
     cursor.execute("SELECT id, alias FROM coiffeuses ORDER BY alias;")
     stylists = cursor.fetchall()
-    
     cursor.execute("SELECT id, nom FROM services ORDER BY nom;")
     services = cursor.fetchall()
-
     cursor.execute("""
         SELECT c.alias, s.nom, cs.prix 
         FROM coiffeuse_services cs
