@@ -2,50 +2,51 @@
 {% block title %}Réserver {{ service.nom }} - Coiff'Connect{% endblock %}
 {% block content %}
 <style>
-    /* Modern UI Overrides */
     .booking-wrapper { max-width: 800px; margin: 2rem auto; background: #fff; padding: 2.5rem; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
-    .section-title { font-family: 'Playfair Display', serif; font-size: 1.5rem; color: #333; margin-bottom: 1rem; border-bottom: 2px solid #C5A059; padding-bottom: 0.5rem; display: inline-block; }
+    .section-title { font-family: 'Playfair Display', serif; font-size: 1.5rem; color: #111; margin-bottom: 1rem; border-bottom: 2px solid #C5A059; padding-bottom: 0.5rem; display: inline-block; font-weight: 700; }
     
     .form-group { margin-bottom: 1.5rem; }
-    .form-label { display: block; font-weight: 600; margin-bottom: 0.5rem; color: #444; }
-    .form-control { width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 8px; font-family: inherit; font-size: 1rem; transition: 0.3s; }
+    .form-label { display: block; font-weight: 700; margin-bottom: 0.5rem; color: #222; font-size: 1.05rem; }
+    .form-control { width: 100%; padding: 0.8rem; border: 1px solid #aaa; border-radius: 8px; font-family: inherit; font-size: 1rem; transition: 0.3s; color: #111; background: #fff; font-weight: 500; }
     .form-control:focus { border-color: #C5A059; outline: none; box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.2); }
     
     /* Clickable Cards for Stylists */
     .grid-stylists { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem; }
-    .card-option { border: 2px solid #eee; border-radius: 10px; padding: 1rem; cursor: pointer; transition: all 0.2s ease; text-align: center; background: #fff; }
+    .card-option { border: 2px solid #ccc; border-radius: 10px; padding: 1rem; cursor: pointer; transition: all 0.2s ease; text-align: center; background: #fff; }
     .card-option:hover { border-color: #d8c29d; background: #fdfaf5; }
-    .card-option.selected { border-color: #C5A059; background: rgba(197, 160, 89, 0.1); box-shadow: 0 4px 10px rgba(197,160,89,0.15); }
-    .card-title { font-weight: 700; color: #333; font-size: 1.1rem; margin-bottom: 0.2rem; }
-    .card-price { color: #C5A059; font-weight: 600; font-size: 1.2rem; }
+    .card-option.selected { border-color: #C5A059; background: rgba(197, 160, 89, 0.1); box-shadow: 0 4px 10px rgba(197,160,89,0.15); border-width: 2px; }
+    .card-title { font-weight: 700; color: #111; font-size: 1.15rem; margin-bottom: 0.3rem; }
+    .card-price { color: #b08d4b; font-weight: 700; font-size: 1.25rem; }
     
     /* Clickable Pills for Times */
     .grid-times { display: flex; flex-wrap: wrap; gap: 0.8rem; margin-top: 1rem; }
-    .time-pill { padding: 0.6rem 1.2rem; border: 2px solid #eee; border-radius: 30px; font-weight: 600; color: #555; cursor: pointer; transition: 0.2s; }
-    .time-pill:hover { border-color: #C5A059; color: #C5A059; }
+    .time-pill { padding: 0.6rem 1.2rem; border: 2px solid #ccc; border-radius: 30px; font-weight: 700; color: #333; cursor: pointer; transition: 0.2s; background: #fff; }
+    .time-pill:hover { border-color: #C5A059; color: #b08d4b; }
     .time-pill.selected { background: #C5A059; border-color: #C5A059; color: #fff; }
 
     /* Conditional Logic Boxes */
-    .logic-box { background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 1.5rem; margin-top: 1rem; display: none; }
+    .logic-box { background: #f8f9fa; border: 1px solid #ccc; border-radius: 8px; padding: 1.5rem; margin-top: 1rem; display: none; }
     .logic-box.active { display: block; animation: fadeIn 0.4s; }
-    .radio-label { display: flex; align-items: center; padding: 0.8rem; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 0.5rem; cursor: pointer; background: #fff; transition: 0.2s; }
+    .radio-label { display: flex; align-items: center; padding: 0.8rem; border: 1px solid #ccc; border-radius: 8px; margin-bottom: 0.5rem; cursor: pointer; background: #fff; transition: 0.2s; font-weight: 700; color: #222; }
     .radio-label:hover { border-color: #C5A059; }
     .radio-label input { margin-right: 10px; accent-color: #C5A059; transform: scale(1.2); }
     
-    .notice-text { font-size: 0.9rem; color: #666; margin-top: 0.5rem; font-style: italic; }
-    .price-summary { background: #222; color: #fff; padding: 1.5rem; border-radius: 8px; margin-top: 2rem; text-align: center; }
-    .price-summary h3 { margin: 0; font-size: 1.5rem; color: #C5A059; }
+    .notice-text { font-size: 0.95rem; color: #222; margin-top: 0.5rem; font-style: italic; line-height: 1.4; font-weight: 500; }
+    .price-summary { background: #1a1a1a; color: #fff; padding: 1.5rem; border-radius: 8px; margin-top: 2rem; text-align: center; }
+    .price-summary h3 { margin: 0; font-size: 1.8rem; color: #C5A059; font-weight: 700; }
+    .price-summary .estimate-label { margin: 0 0 0.5rem 0; font-size: 1.1rem; color: #f1f1f1; font-weight: 700; }
+    .price-summary .deposit-label { font-size: 0.9rem; margin-top: 0.5rem; color: #ddd; font-weight: 600; }
     
-    .btn-submit { width: 100%; padding: 1rem; background: #C5A059; color: #fff; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: 600; cursor: pointer; margin-top: 1rem; transition: 0.3s; }
-    .btn-submit:hover { background: #b08d4b; transform: translateY(-2px); }
+    .btn-submit { width: 100%; padding: 1rem; background: #C5A059; color: #fff; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: 700; cursor: pointer; margin-top: 1rem; transition: 0.3s; }
+    .btn-submit:hover { background: #b08d4b; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(197, 160, 89, 0.3); }
 
     @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 </style>
 
 <div class="booking-wrapper">
     <div style="text-align: center; margin-bottom: 2rem;">
-        <h1 style="font-family: 'Playfair Display', serif; font-size: 2.5rem; color: #222; margin-bottom: 0.5rem;">Réserver : {{ service.nom }}</h1>
-        <p style="color: #666;">{{ service.description }}</p>
+        <h1 style="font-family: 'Playfair Display', serif; font-size: 2.5rem; color: #111; margin-bottom: 0.5rem; font-weight: 700;">Réserver : {{ service.nom }}</h1>
+        <p style="color: #222; font-size: 1.05rem; line-height: 1.5; font-weight: 500;">{{ service.description }}</p>
     </div>
 
     <form action="{{ url_for('submit_booking') }}" method="POST" id="bookingForm">
@@ -57,18 +58,18 @@
             <input type="date" id="selected_date" name="selected_date" class="form-control" required min="{{ range_start }}" onchange="fetchStylists()">
         </div>
 
-        <!-- STEP 2: STYLIST (Replaces Dropdown) -->
+        <!-- STEP 2: STYLIST -->
         <h2 class="section-title">2. Choisir une coiffeuse</h2>
         <input type="hidden" id="stylist_id" name="stylist_id" required>
         <div id="stylists-container" class="grid-stylists">
-            <p style="color: #999; grid-column: 1/-1;">Veuillez sélectionner une date d'abord.</p>
+            <p style="color: #333; font-weight: 700; grid-column: 1/-1;">Veuillez sélectionner une date d'abord.</p>
         </div>
 
-        <!-- STEP 3: TIME (Replaces Dropdown) -->
+        <!-- STEP 3: TIME -->
         <h2 class="section-title" style="margin-top: 2rem;">3. Choisir l'heure</h2>
         <input type="hidden" id="selected_time" name="selected_time" required>
         <div id="times-container" class="grid-times">
-            <p style="color: #999;">Veuillez sélectionner une coiffeuse d'abord.</p>
+            <p style="color: #333; font-weight: 700;">Veuillez sélectionner une coiffeuse d'abord.</p>
         </div>
 
         <!-- STEP 4: LOGISTICS -->
@@ -99,8 +100,8 @@
 
         <!-- Logic Box for Domicile -->
         <div id="logic-domicile" class="logic-box">
-            <p style="color: #C5A059; font-weight: 600; margin-bottom: 0.5rem;">🚐 Frais de déplacement appliqués (+10$)</p>
-            <p class="notice-text">Les frais couvrent le transport aller-retour de la coiffeuse jusqu'à votre domicile. <br><strong>Note :</strong> Il n'est pas permis au client de venir chercher la coiffeuse.</p>
+            <p style="color: #C5A059; font-weight: 700; margin-bottom: 0.5rem; font-size: 1.1rem;">🚐 Frais de déplacement appliqués (+10$)</p>
+            <p class="notice-text">Les frais de 10$ couvrent le transport aller-retour de la coiffeuse jusqu'à votre domicile. <br><strong>Note :</strong> Il n'est pas permis au client de venir chercher la coiffeuse pour des raisons de sécurité.</p>
         </div>
 
         <!-- Address Field -->
@@ -126,9 +127,9 @@
 
         <!-- SUMMARY -->
         <div class="price-summary">
-            <p style="margin: 0 0 0.5rem 0; font-size: 1.1rem; color: #ccc;">Total Estimé</p>
+            <p class="estimate-label">Total Estimé</p>
             <h3><span id="display-total">--</span>$</h3>
-            <p style="font-size: 0.8rem; margin-top: 0.5rem; color: #888;">(Un dépôt de 5$ sera requis à la prochaine étape)</p>
+            <p class="deposit-label">(Un dépôt de 5$ sera requis à la prochaine étape)</p>
         </div>
 
         <button type="submit" class="btn-submit">Confirmer la Réservation</button>
@@ -145,8 +146,8 @@
         
         if (!dateStr) return;
         
-        container.innerHTML = '<p style="color: #999;">Recherche des disponibilités...</p>';
-        document.getElementById('times-container').innerHTML = '';
+        container.innerHTML = '<p style="color: #111; font-weight: 700;">Recherche des disponibilités...</p>';
+        document.getElementById('times-container').innerHTML = '<p style="color: #333; font-weight: 700;">Veuillez sélectionner une coiffeuse d\'abord.</p>';
         
         fetch(`/api/available-stylists/${serviceId}/${dateStr}`)
             .then(res => res.json())
@@ -155,35 +156,30 @@
                 const all = [...data.exact_matches, ...data.close_matches];
                 
                 if(all.length === 0) {
-                    container.innerHTML = '<p style="color: #c62828;">Aucune coiffeuse disponible ce jour-là.</p>';
+                    container.innerHTML = '<p style="color: #c62828; font-weight: 700;">Aucune coiffeuse disponible ce jour-là.</p>';
                     return;
                 }
                 
                 all.forEach(stylist => {
                     const div = document.createElement('div');
                     div.className = 'card-option';
-                    // We attach the price to the dataset for calculation later
                     div.dataset.price = stylist.prix;
                     div.dataset.id = stylist.id;
                     
                     div.innerHTML = `
                         <div class="card-title">${stylist.alias}</div>
                         <div class="card-price">${stylist.prix}$</div>
-                        <div style="font-size: 0.8rem; color: #777; margin-top: 5px;">📍 ${stylist.deplacement_pref}</div>
+                        <div style="font-size: 0.95rem; color: #222; font-weight: 700; margin-top: 5px;">📍 ${stylist.deplacement_pref}</div>
                     `;
                     
                     div.onclick = function() {
-                        // Remove selected from all
                         document.querySelectorAll('.grid-stylists .card-option').forEach(el => el.classList.remove('selected'));
-                        // Add to clicked
                         div.classList.add('selected');
-                        // Update Hidden input
+                        
                         document.getElementById('stylist_id').value = stylist.id;
-                        // Update Base Price
                         currentBasePrice = parseFloat(stylist.prix);
                         calculateTotal();
                         
-                        // Fetch Times
                         fetchTimes(stylist.id, dateStr);
                     };
                     
@@ -194,14 +190,14 @@
 
     function fetchTimes(stylistId, dateStr) {
         const container = document.getElementById('times-container');
-        container.innerHTML = '<p style="color: #999;">Chargement des heures...</p>';
+        container.innerHTML = '<p style="color: #111; font-weight: 700;">Chargement des heures...</p>';
         
         fetch(`/api/times/${stylistId}/${dateStr}`)
             .then(res => res.json())
             .then(data => {
                 container.innerHTML = '';
                 if(data.times.length === 0) {
-                    container.innerHTML = '<p style="color: #c62828;">Plus de place aujourd\'hui.</p>';
+                    container.innerHTML = '<p style="color: #c62828; font-weight: 700;">Plus de place aujourd\'hui.</p>';
                     return;
                 }
                 
@@ -229,15 +225,13 @@
         if(lieu === 'studio') {
             boxStudio.classList.add('active');
             boxDomicile.classList.remove('active');
-            // Uncheck domicile logic, require studio logic
             document.querySelectorAll('input[name="besoin_transport"]').forEach(r => r.required = true);
         } else {
             boxDomicile.classList.add('active');
             boxStudio.classList.remove('active');
-            // Remove requirement for studio transport logic
             document.querySelectorAll('input[name="besoin_transport"]').forEach(r => {
                 r.required = false;
-                r.checked = false; // reset
+                r.checked = false;
             });
         }
         calculateTotal();
@@ -251,11 +245,11 @@
         
         if (lieu) {
             if (lieu.value === 'domicile') {
-                extra = 10; // Auto transport fee
+                extra = 10;
             } else if (lieu.value === 'studio') {
                 const transport = document.querySelector('input[name="besoin_transport"]:checked');
                 if (transport && transport.value === 'oui') {
-                    extra = 10; // Client needs ride
+                    extra = 10;
                 }
             }
         }
