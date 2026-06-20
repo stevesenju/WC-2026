@@ -324,18 +324,39 @@ def stylist_dashboard():
             ORDER BY h.date_jour ASC, h.heure_debut ASC;
         """, (coiffeuse_id,))
         
-        appointments = cursor.fetchall()
+        all_appointments = cursor.fetchall()
+        
+        # Categorize appointments based on status and current time
+        now = datetime.now()
+        upcoming = []
+        past = []
+        cancelled = []
+
+        for appt in all_appointments:
+            if appt['statut'] == 'Annule':
+                cancelled.append(appt)
+            else:
+                # Combine date and time to see if it has passed
+                appt_dt = datetime.combine(appt['date_jour'], appt['heure_debut'])
+                if appt_dt >= now:
+                    upcoming.append(appt)
+                else:
+                    past.append(appt)
+                    
+        # Reverse past and cancelled so the most recent ones show at the top of their sections
+        past.reverse()
+        cancelled.reverse()
         
     except Exception as e:
         print(f"Stylist Dashboard Error: {e}")
-        appointments = []
+        upcoming, past, cancelled = [], [], []
         stylist_name = "Profil"
         flash("Erreur lors du chargement des données.", "error")
     finally:
         cursor.close()
         conn.close()
 
-    return render_template("stylist_dashboard.html", appointments=appointments, stylist_name=stylist_name)
+    return render_template("stylist_dashboard.html", upcoming=upcoming, past=past, cancelled=cancelled, stylist_name=stylist_name)
 
 @app.route("/stylist/schedule", methods=["GET", "POST"])
 def stylist_schedule():

@@ -14,18 +14,27 @@
     .btn-logout { color: #c62828; font-weight: 700; text-decoration: none; font-size: 1rem; border: 2px solid transparent; padding: 0.6rem; transition: 0.2s; }
     .btn-logout:hover { border-bottom: 2px solid #c62828; }
 
+    /* Section Titles */
+    .section-title { font-family: 'Playfair Display', serif; font-size: 1.6rem; color: #111; margin: 3rem 0 1rem 0; font-weight: 700; border-bottom: 2px solid #ddd; padding-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+    .section-upcoming { border-color: #C5A059; margin-top: 1rem; }
+    .section-past { border-color: #78909c; }
+    .section-cancelled { border-color: #ef5350; }
+
     /* Modern Card Layout for Mobile Optimization */
-    .appt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; margin-top: 1rem; }
+    .appt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; }
     
     .appt-card { border: 2px solid #ddd; border-radius: 12px; background: #fff; overflow: hidden; display: flex; flex-direction: column; transition: 0.3s box-shadow; }
     .appt-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.1); border-color: #ccc; }
+    .appt-card.card-cancelled { opacity: 0.75; background: #fafafa; border-style: dashed; }
     
     .appt-header { background: #fdfaf5; border-bottom: 2px solid #ddd; padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; }
     .appt-date { font-weight: 800; color: #111; font-size: 1.1rem; }
     
-    .appt-body { padding: 1.5rem; display: flex; flex-direction: column; gap: 0.8rem; }
+    .appt-body { padding: 1.5rem; display: flex; flex-direction: column; gap: 0.8rem; flex-grow: 1; }
     .client-name { margin: 0; color: #111; font-weight: 800; font-size: 1.3rem; }
-    .client-contact { font-size: 1rem; color: #222; font-weight: 600; margin: 0; line-height: 1.6; }
+    .client-contact { font-size: 1.05rem; color: #222; font-weight: 600; margin: 0; line-height: 1.8; }
+    .contact-link { color: #111; text-decoration: underline; text-decoration-color: #C5A059; transition: 0.2s; }
+    .contact-link:hover { color: #C5A059; }
     
     .service-badge { display: inline-block; background: #111; color: #fff; padding: 0.4rem 0.8rem; border-radius: 6px; font-weight: 700; font-size: 0.95rem; margin-bottom: 0.5rem; align-self: flex-start; }
     
@@ -37,7 +46,43 @@
     .status-confirme { background: #e8f5e9; color: #1b5e20; border-color: #c8e6c9; }
     .status-complete { background: #eceff1; color: #37474f; border-color: #cfd8dc; }
     .status-annule { background: #ffebee; color: #b71c1c; border-color: #ffcdd2; }
+
+    .empty-state { text-align: center; padding: 2.5rem 2rem; background: #f8f9fa; border-radius: 12px; border: 2px dashed #ccc; }
+    .empty-state h3 { color: #111; font-weight: 800; font-size: 1.3rem; margin: 0 0 0.5rem 0; }
+    .empty-state p { color: #333; font-weight: 600; font-size: 1rem; margin: 0; }
 </style>
+
+<!-- JINJA MACRO: Generates a card so we don't repeat code 3 times -->
+{% macro render_appt_card(appt, is_cancelled=False) %}
+<div class="appt-card {% if is_cancelled %}card-cancelled{% endif %}">
+    <div class="appt-header">
+        <span class="appt-date">{{ appt.date_jour.strftime('%d/%m/%Y') }} - {{ appt.heure_debut.strftime('%H:%M') }}</span>
+        <span class="status-pill status-{{ appt.statut | lower }}">{{ appt.statut }}</span>
+    </div>
+    
+    <div class="appt-body">
+        <span class="service-badge">{{ appt.service_name }}</span>
+        
+        <div>
+            <h3 class="client-name">{{ appt.client_nom }}</h3>
+            <div class="client-contact">
+                📞 <a href="tel:{{ appt.client_telephone }}" class="contact-link">{{ appt.client_telephone }}</a><br>
+                ✉️ <a href="mailto:{{ appt.client_email }}" class="contact-link">{{ appt.client_email }}</a>
+            </div>
+        </div>
+        
+        <div class="loc-box">
+            {% if appt.transport_req %}
+                <div class="loc-title" style="color: #C5A059;">🚗 Déplacement à Domicile</div>
+                <p class="loc-address">📍 {{ appt.client_adresse }}</p>
+            {% else %}
+                <div class="loc-title" style="color: #2c3e50;">🏢 En Studio</div>
+                <p class="loc-address" style="color: #333; font-weight: 600;">Le client vient à votre studio.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endmacro %}
 
 <div class="dashboard-container">
     <div class="page-header">
@@ -48,49 +93,44 @@
         </div>
     </div>
 
-    <p style="color: #222; margin-bottom: 2rem; font-weight: 600; font-size: 1.1rem;">Bienvenue, <strong>{{ stylist_name }}</strong>. Voici vos rendez-vous confirmés.</p>
+    <p style="color: #222; font-weight: 600; font-size: 1.1rem; margin-bottom: 0;">Bienvenue, <strong>{{ stylist_name }}</strong>.</p>
 
-    {% if appointments %}
-    <div class="appt-grid">
-        {% for appt in appointments %}
-        <div class="appt-card">
-            <!-- Header: Date and Status -->
-            <div class="appt-header">
-                <span class="appt-date">{{ appt.date_jour.strftime('%d/%m/%Y') }} - {{ appt.heure_debut.strftime('%H:%M') }}</span>
-                <span class="status-pill status-{{ appt.statut | lower }}">{{ appt.statut }}</span>
-            </div>
-            
-            <!-- Body: Client Info -->
-            <div class="appt-body">
-                <span class="service-badge">{{ appt.service_name }}</span>
-                
-                <div>
-                    <h3 class="client-name">{{ appt.client_nom }}</h3>
-                    <div class="client-contact">
-                        📞 {{ appt.client_telephone }}<br>
-                        ✉️ {{ appt.client_email }}
-                    </div>
-                </div>
-                
-                <!-- Location Box (Emphasized) -->
-                <div class="loc-box">
-                    {% if appt.transport_req %}
-                        <div class="loc-title" style="color: #C5A059;">🚗 Déplacement à Domicile</div>
-                        <p class="loc-address">📍 {{ appt.client_adresse }}</p>
-                    {% else %}
-                        <div class="loc-title" style="color: #2c3e50;">🏢 En Studio</div>
-                        <p class="loc-address" style="color: #333; font-weight: 600;">Le client vient à votre studio.</p>
-                    {% endif %}
-                </div>
-            </div>
+    <!-- SECTION: UPCOMING -->
+    <h3 class="section-title section-upcoming">🟢 Rendez-vous à venir</h3>
+    {% if upcoming %}
+        <div class="appt-grid">
+            {% for appt in upcoming %}
+                {{ render_appt_card(appt) }}
+            {% endfor %}
         </div>
-        {% endfor %}
-    </div>
     {% else %}
-        <div style="text-align: center; padding: 4rem 2rem; background: #f8f9fa; border-radius: 12px; border: 2px dashed #ccc;">
-            <h3 style="color: #111; font-weight: 800; font-size: 1.5rem; margin-bottom: 0.5rem;">Aucun rendez-vous</h3>
-            <p style="color: #333; font-weight: 600; font-size: 1.1rem;">Vous n'avez pas de rendez-vous confirmés pour le moment.</p>
+        <div class="empty-state">
+            <h3>Aucun rendez-vous à venir</h3>
+            <p>Vos prochains rendez-vous confirmés apparaîtront ici.</p>
         </div>
     {% endif %}
+
+    <!-- SECTION: PAST -->
+    <h3 class="section-title section-past">🔘 Rendez-vous passés</h3>
+    {% if past %}
+        <div class="appt-grid">
+            {% for appt in past %}
+                {{ render_appt_card(appt) }}
+            {% endfor %}
+        </div>
+    {% else %}
+        <p style="color: #444; font-weight: 600;">Aucun historique de rendez-vous pour le moment.</p>
+    {% endif %}
+
+    <!-- SECTION: CANCELLED -->
+    {% if cancelled %}
+    <h3 class="section-title section-cancelled">🔴 Rendez-vous annulés</h3>
+    <div class="appt-grid">
+        {% for appt in cancelled %}
+            {{ render_appt_card(appt, is_cancelled=True) }}
+        {% endfor %}
+    </div>
+    {% endif %}
+
 </div>
 {% endblock %}
