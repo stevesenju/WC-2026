@@ -295,7 +295,48 @@ def admin_logout():
     flash("Vous avez été déconnecté en toute sécurité.", "success")
     return redirect(url_for('admin_login'))
 
-# --- STYLIST SCHEDULE ROUTES ---
+# --- STYLIST ROUTES ---
+
+@app.route("/stylist/dashboard")
+def stylist_dashboard():
+    if 'user_id' not in session or session.get('role') != 'Agent':
+        flash("Accès refusé. Réservé aux coiffeuses.", "error")
+        return redirect(url_for('admin_login'))
+
+    conn = get_db_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    coiffeuse_id = session.get('coiffeuse_id')
+
+    try:
+        # Fetch stylist alias
+        cursor.execute("SELECT alias FROM coiffeuses WHERE id = %s", (coiffeuse_id,))
+        stylist = cursor.fetchone()
+        stylist_name = stylist['alias'] if stylist else "Profil"
+
+        # Fetch confirmed/completed/cancelled appointments (NOT pending)
+        cursor.execute("""
+            SELECT r.id, r.client_nom, r.client_telephone, r.transport_req, r.client_adresse, r.prix_total, r.statut, r.code_interac,
+                   h.date_jour, h.heure_debut, s.nom as service_name
+            FROM rendezvous r
+            JOIN horaires h ON r.horaire_id = h.id
+            JOIN services s ON r.service_id = s.id
+            WHERE r.coiffeuse_id = %s AND r.statut != 'En_Attente'
+            ORDER BY h.date_jour ASC, h.heure_debut ASC;
+        """, (coiffeuse_id,))
+        
+        appointments = cursor.fetchall()
+        
+    except Exception as e:
+        print(f"Stylist Dashboard Error: {e}")
+        appointments = []
+        stylist_name = "Profil"
+        flash("Erreur lors du chargement des données.", "error")
+    finally:
+        cursor.close()
+        conn.close()
+
+    return render_template("stylist_dashboard.html", appointments=appointments, stylist_name=stylist_name)
+
 @app.route("/stylist/schedule", methods=["GET", "POST"])
 def stylist_schedule():
     if 'user_id' not in session or session.get('role') != 'Agent':
