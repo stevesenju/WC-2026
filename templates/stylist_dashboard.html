@@ -66,8 +66,8 @@
         <div>
             <h3 class="client-name">{{ appt.client_nom }}</h3>
             <div class="client-contact">
-                📞 <a href="tel:{{ appt.client_telephone }}" class="contact-link">{{ appt.client_telephone }}</a><br>
-                ✉️ <a href="mailto:{{ appt.client_email }}" class="contact-link">{{ appt.client_email }}</a>
+                <a href="tel:{{ appt.client_telephone }}" class="contact-link">{{ appt.client_telephone }}</a><br>
+                <a href="mailto:{{ appt.client_email }}" class="contact-link">{{ appt.client_email }}</a>
             </div>
         </div>
         
@@ -76,7 +76,7 @@
                 <div class="loc-title" style="color: #C5A059;">🚗 Déplacement à Domicile</div>
                 <p class="loc-address">📍 {{ appt.client_adresse }}</p>
             {% else %}
-                <div class="loc-title" style="color: #2c3e50;">🏢 En Studio</div>
+                <div class="loc-title" style="color: #2c3e50;"> En Studio</div>
                 <p class="loc-address" style="color: #333; font-weight: 600;">Le client vient à votre studio.</p>
             {% endif %}
         </div>
@@ -96,7 +96,7 @@
     <p style="color: #222; font-weight: 600; font-size: 1.1rem; margin-bottom: 0;">Bienvenue, <strong>{{ stylist_name }}</strong>.</p>
 
     <!-- SECTION: UPCOMING -->
-    <h3 class="section-title section-upcoming">🟢 Rendez-vous à venir</h3>
+    <h3 class="section-title section-upcoming"> Rendez-vous à venir</h3>
     {% if upcoming %}
         <div class="appt-grid">
             {% for appt in upcoming %}
@@ -111,7 +111,7 @@
     {% endif %}
 
     <!-- SECTION: PAST -->
-    <h3 class="section-title section-past">🔘 Rendez-vous passés</h3>
+    <h3 class="section-title section-past"> Rendez-vous passés</h3>
     {% if past %}
         <div class="appt-grid">
             {% for appt in past %}
@@ -124,7 +124,7 @@
 
     <!-- SECTION: CANCELLED -->
     {% if cancelled %}
-    <h3 class="section-title section-cancelled">🔴 Rendez-vous annulés</h3>
+    <h3 class="section-title section-cancelled"> Rendez-vous annulés</h3>
     <div class="appt-grid">
         {% for appt in cancelled %}
             {{ render_appt_card(appt, is_cancelled=True) }}

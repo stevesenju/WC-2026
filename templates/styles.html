@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% block title %}{{ category_name }} - Coiff'Connect{% endblock %}
 
 {% block content %}
 <div class="styles-container">
@@ -13,6 +14,7 @@
         {% for service in services %}
         <a href="/booking/{{ service.id }}" class="style-tile">
             <div class="tile-image">
+                <!-- Fetching directly from database without placeholders -->
                 <img src="{{ service.image_url }}" alt="{{ service.nom }}">
                 <div class="tile-overlay">
                     <span class="overlay-text">Sélectionner</span>
@@ -27,8 +29,8 @@
         {% else %}
         <!-- WHAT SHOWS WHEN THE DB IS EMPTY -->
         <div class="empty-state">
-            <p>Aucun style n'est disponible dans cette catégorie pour le moment.</p>
-            <p>Notre équipe met à jour le catalogue très bientôt !</p>
+            <p style="color: #111; font-weight: 700; font-size: 1.2rem;">Aucun style n'est disponible dans cette catégorie pour le moment.</p>
+            <p style="color: #333; font-weight: 500;">Notre équipe met à jour le catalogue très bientôt !</p>
         </div>
         {% endfor %}
 
@@ -39,41 +41,57 @@
 .styles-container {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 0 1rem;
+    padding: 0 1rem 3rem 1rem;
 }
 
 .styles-header {
     text-align: center;
     margin-bottom: 3rem;
 }
+.styles-header h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.2rem;
+    color: #111;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+.hero-subtitle {
+    color: #333;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
 
 /* Empty State Styling */
 .empty-state {
-    grid-column: 1 / -1; /* Forces it to take up the whole row */
+    grid-column: 1 / -1; 
     text-align: center;
     padding: 4rem 2rem;
-    background: var(--bg-card);
-    border: 1px dashed rgba(197, 160, 89, 0.4);
+    background: #fdfaf5;
+    border: 2px dashed #d8c29d;
     border-radius: 8px;
-    color: var(--text-muted);
 }
 
-.empty-state p {
-    margin-bottom: 0.5rem;
-}
-
-/* Tighter, smaller grid optimized for many items */
+/* MOBILE FIRST: Forces 2 columns on small screens so images aren't huge */
 .lookbook-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 2rem;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+/* DESKTOP/TABLET: Expands to more columns on bigger screens */
+@media (min-width: 768px) {
+    .lookbook-grid {
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 2rem;
+    }
 }
 
 .style-tile {
-    display: block;
-    background: var(--bg-card);
-    border: 1px solid rgba(197, 160, 89, 0.1);
-    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
     overflow: hidden;
     transition: all 0.3s ease;
     text-decoration: none;
@@ -81,16 +99,17 @@
 }
 
 .style-tile:hover {
-    border-color: var(--gold-primary);
+    border-color: #C5A059;
     transform: translateY(-4px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
 }
 
 .tile-image {
     width: 100%;
-    aspect-ratio: 4 / 5;
+    aspect-ratio: 4 / 5; /* Keeps vertical portrait styling */
     position: relative;
     overflow: hidden;
+    border-bottom: 2px solid #C5A059;
 }
 
 .tile-image img {
@@ -103,7 +122,7 @@
 .tile-overlay {
     position: absolute;
     top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(10, 10, 10, 0.7);
+    background: rgba(17, 17, 17, 0.5);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -120,12 +139,13 @@
 }
 
 .overlay-text {
-    color: var(--gold-primary);
-    font-family: var(--font-body);
-    font-weight: 600;
+    color: #fff;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 1px;
-    border: 1px solid var(--gold-primary);
+    border: 2px solid #C5A059;
+    background: rgba(197, 160, 89, 0.9);
     padding: 8px 16px;
     border-radius: 4px;
 }
@@ -133,17 +153,23 @@
 .tile-info {
     padding: 1.2rem;
     text-align: center;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
 }
 
+/* HIGH CONTRAST, DARK TEXT FIX */
 .tile-info h3 {
     font-size: 1.1rem;
-    color: var(--text-main);
+    color: #111;
+    font-weight: 800;
     margin-bottom: 0.5rem;
 }
 
 .tile-info p {
-    color: var(--text-muted);
-    font-size: 0.85rem;
+    color: #333;
+    font-weight: 600;
+    font-size: 0.9rem;
     line-height: 1.4;
     margin: 0;
     display: -webkit-box;

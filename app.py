@@ -91,6 +91,14 @@ def booking(service_id):
     if not service: return "Service non trouvé", 404
     return render_template("booking.html", service=service)
 
+@app.route("/politiques-securite")
+def politiques_securite():
+    return render_template("politiques-securite.html")
+
+@app.route("/nous-joindre")
+def nous_joindre():
+    return render_template("nous-joindre.html")
+
 # --- API ROUTES ---
 
 @app.route("/api/available-stylists/<int:service_id>/<date_str>")

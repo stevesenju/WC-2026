@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Politiques de Sécurité - Coiff'Connect{% endblock %}
+
+{% block content %}
+<style>
+    .policy-container { max-width: 800px; margin: 3rem auto; padding: 2.5rem; background: #fff; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+    .policy-title { font-family: 'Playfair Display', serif; font-size: 2.2rem; color: #111; font-weight: 700; margin-bottom: 2rem; border-bottom: 3px solid #C5A059; padding-bottom: 1rem; }
+    
+    .policy-section { margin-bottom: 2rem; }
+    .policy-section h3 { color: #111; font-size: 1.3rem; font-weight: 800; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+    .policy-section p, .policy-section li { color: #333; font-size: 1.05rem; line-height: 1.6; font-weight: 500; margin-bottom: 0.5rem; }
+    .policy-section ul { padding-left: 1.5rem; }
+</style>
+
+<div class="policy-container">
+    <h1 class="policy-title">Politiques de Sécurité & Confidentialité</h1>
+
+    <div class="policy-section">
+        <h3>💳 Sécurité des Paiements</h3>
+        <p>Afin de garantir une transaction sécurisée, Coiff'Connect utilise exclusivement les <strong>Virements Interac</strong> pour la collecte des dépôts. Nous ne stockons, ni ne demandons jamais vos numéros de carte de crédit sur notre site web.</p>
+    </div>
+
+    <div class="policy-section">
+        <h3>🚗 Politique de Transport & Domicile</h3>
+        <p>Pour la sécurité de notre personnel (coiffeuses) et de nos clients, les règles suivantes s'appliquent strictement :</p>
+        <ul>
+            <li><strong>Transport personnel interdit :</strong> Il est strictement interdit pour un client d'aller chercher la coiffeuse avec son propre véhicule. Le transport est assuré de manière indépendante par la coiffeuse ou par Coiff'Connect.</li>
+            <li><strong>Environnement de travail :</strong> Lors d'un rendez-vous à domicile, le client s'engage à fournir un espace de travail sécuritaire, propre et respectueux.</li>
+            <li><strong>Annulation de sécurité :</strong> Une coiffeuse se réserve le droit de quitter les lieux ou d'annuler un rendez-vous si elle estime que sa sécurité ou son intégrité est compromise.</li>
+        </ul>
+    </div>
+
+    <div class="policy-section">
+        <h3>🔒 Protection des Données Personnelles</h3>
+        <p>Vos informations personnelles (Nom, Adresse, Téléphone, Courriel) sont collectées dans le seul but d'assurer la prestation du service de coiffure. Coiff'Connect s'engage formellement à ne <strong>jamais vendre, louer ou distribuer</strong> vos informations à des tiers à des fins de marketing.</p>
+    </div>
+
+    <div class="policy-section">
+        <h3>❌ Annulations et Dépôts</h3>
+        <p>Le dépôt initial de 5$ requis lors de la réservation est <strong>non-remboursable</strong> en cas d'annulation par le client à moins de 24 heures de préavis. Si l'annulation est initiée par l'administration ou la coiffeuse, le dépôt vous sera intégralement remboursé.</p>
+    </div>
+</div>
+{% endblock %}
