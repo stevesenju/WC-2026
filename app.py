@@ -148,26 +148,44 @@ def get_times(stylist_id, date_str):
 
 @app.route("/submit-booking", methods=["POST"])
 def submit_booking():
+    # 1. Capture Form Data
     client_nom = request.form.get("client_nom")
     client_telephone = request.form.get("client_telephone")
     client_email = request.form.get("client_email")
-    lieu_service = request.form.get("lieu_service")
     client_adresse = request.form.get("client_adresse", "")
+    
+    lieu_service = request.form.get("lieu_service") # 'studio' or 'domicile'
+    besoin_transport = request.form.get("besoin_transport") # 'oui' or 'non'
     
     service_id = request.form.get("service_id")
     stylist_id = request.form.get("stylist_id")
     selected_date = request.form.get("selected_date")
     selected_time = request.form.get("selected_time")
 
-    transport_req = True if lieu_service == "domicile" else False
+    # Generate a random 6-character code
     code_interac = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
     conn = get_db_connection()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     try:
+        # Get the exact base price
         cursor.execute("SELECT prix FROM coiffeuse_services WHERE coiffeuse_id = %s AND service_id = %s", (stylist_id, service_id))
-        prix_total = cursor.fetchone()['prix']
+        prix_base = float(cursor.fetchone()['prix'])
 
+        # 2. Calculate Transport Logic & Final Price
+        frais_transport = 0.0
+        transport_req = False
+        
+        if lieu_service == "domicile":
+            frais_transport = 10.0
+            transport_req = True # Stylist needs to travel
+        elif lieu_service == "studio" and besoin_transport == "oui":
+            frais_transport = 10.0
+            transport_req = True # Client needs CoiffConnect transport
+            
+        prix_total = prix_base + frais_transport
+
+        # Look up the actual horaire_id using the date and time
         cursor.execute("""
             SELECT id FROM horaires 
             WHERE coiffeuse_id = %s AND date_jour = %s AND heure_debut = %s AND statut = 'Libre'
@@ -179,6 +197,7 @@ def submit_booking():
         
         horaire_id = horaire_row['id']
 
+        # 3. Insert Booking with code_interac
         cursor.execute("""
             INSERT INTO rendezvous (
                 client_nom, client_email, client_telephone, client_adresse, 
@@ -276,47 +295,113 @@ def admin_logout():
     flash("Vous avez été déconnecté en toute sécurité.", "success")
     return redirect(url_for('admin_login'))
 
-# --- STYLIST DASHBOARD (Independent) ---
-@app.route("/stylist/dashboard")
-def stylist_dashboard():
+# --- STYLIST SCHEDULE ROUTES ---
+@app.route("/stylist/schedule", methods=["GET", "POST"])
+def stylist_schedule():
     if 'user_id' not in session or session.get('role') != 'Agent':
-        flash("Accès refusé. Réservé aux opérateurs.", "error")
+        flash("Accès refusé.", "error")
         return redirect(url_for('admin_login'))
 
     conn = get_db_connection()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     coiffeuse_id = session.get('coiffeuse_id')
 
-    try:
-        # Get Stylist Name
-        cursor.execute("SELECT alias FROM coiffeuses WHERE id = %s", (coiffeuse_id,))
-        stylist_row = cursor.fetchone()
-        stylist_name = stylist_row['alias'] if stylist_row else "Mon Profil"
+    if request.method == "POST":
+        date_jour = request.form.get("date_jour")
+        heure_debut = request.form.get("heure_debut")
+        heure_fin = request.form.get("heure_fin")
+        duree_minutes = int(request.form.get("duree_minutes", 60))
 
-        # Fetch ONLY confirmed, cancelled, or completed appointments (hides pending deposits)
+        try:
+            start_dt = datetime.strptime(f"{date_jour} {heure_debut}", "%Y-%m-%d %H:%M")
+            end_dt = datetime.strptime(f"{date_jour} {heure_fin}", "%Y-%m-%d %H:%M")
+            
+            slot_duration = timedelta(minutes=duree_minutes)
+            current_time = start_dt
+            slots_created = 0
+            
+            while current_time + slot_duration <= end_dt:
+                slot_end = current_time + slot_duration
+                h_deb_str = current_time.strftime("%H:%M:%S")
+                h_fin_str = slot_end.strftime("%H:%M:%S")
+                
+                cursor.execute("""
+                    SELECT id FROM horaires 
+                    WHERE coiffeuse_id = %s AND date_jour = %s AND heure_debut = %s
+                """, (coiffeuse_id, date_jour, h_deb_str))
+                
+                if not cursor.fetchone():
+                    cursor.execute("""
+                        INSERT INTO horaires (coiffeuse_id, date_jour, heure_debut, heure_fin, statut)
+                        VALUES (%s, %s, %s, %s, 'Libre')
+                    """, (coiffeuse_id, date_jour, h_deb_str, h_fin_str))
+                    slots_created += 1
+                
+                current_time += slot_duration
+                
+            conn.commit()
+            flash(f"Succès ! {slots_created} créneaux ont été ajoutés à votre horaire.", "success")
+
+        except Exception as e:
+            conn.rollback()
+            print(f"Stylist Schedule Error: {e}")
+            flash("Erreur lors de la génération. Vérifiez les formats d'heure.", "error")
+            
+        return redirect(url_for('stylist_schedule'))
+
+    try:
+        # Fetch Stylist Alias
+        cursor.execute("SELECT alias FROM coiffeuses WHERE id = %s", (coiffeuse_id,))
+        stylist_name = cursor.fetchone()['alias']
+
+        # Fetch their upcoming free slots
         cursor.execute("""
-            SELECT r.id, r.client_nom, r.client_telephone, r.transport_req, r.client_adresse, r.prix_total, r.statut,
-                   h.date_jour, h.heure_debut, s.nom as service_name
-            FROM rendezvous r
-            JOIN horaires h ON r.horaire_id = h.id
-            JOIN services s ON r.service_id = s.id
-            WHERE r.coiffeuse_id = %s AND r.statut != 'En_Attente'
-            ORDER BY h.date_jour ASC, h.heure_debut ASC;
+            SELECT id, date_jour, heure_debut, heure_fin, statut 
+            FROM horaires 
+            WHERE coiffeuse_id = %s AND date_jour >= CURRENT_DATE AND statut = 'Libre'
+            ORDER BY date_jour ASC, heure_debut ASC;
         """, (coiffeuse_id,))
-        appointments = cursor.fetchall()
-        
+        upcoming_slots = cursor.fetchall()
     except Exception as e:
-        print(f"Stylist Dashboard Error: {e}")
-        appointments = []
-        stylist_name = "Dashboard"
-        flash("Erreur lors du chargement des rendez-vous.", "error")
+        print(f"Fetch Error: {e}")
+        stylist_name = "Profil"
+        upcoming_slots = []
     finally:
         cursor.close()
         conn.close()
 
-    return render_template("stylist_dashboard.html", appointments=appointments, stylist_name=stylist_name)
+    return render_template("stylist_schedule.html", slots=upcoming_slots, stylist_name=stylist_name)
 
-# --- MASTER DASHBOARD ---
+@app.route("/stylist/schedule/delete/<int:slot_id>", methods=["POST"])
+def stylist_delete_slot(slot_id):
+    if 'user_id' not in session or session.get('role') != 'Agent':
+        flash("Accès refusé.", "error")
+        return redirect(url_for('admin_login'))
+
+    coiffeuse_id = session.get('coiffeuse_id')
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # Security check: Make sure they own this slot and it's 'Libre'
+        cursor.execute("SELECT statut, coiffeuse_id FROM horaires WHERE id = %s", (slot_id,))
+        row = cursor.fetchone()
+        
+        if row and row[0] == 'Libre' and row[1] == coiffeuse_id:
+            cursor.execute("UPDATE horaires SET statut = 'Supprime' WHERE id = %s", (slot_id,))
+            conn.commit()
+            flash("Votre créneau a été retiré.", "success")
+        else:
+            flash("Impossible de supprimer ce créneau (déjà réservé ou erreur de permission).", "error")
+    except Exception as e:
+        conn.rollback()
+        print(f"Delete Slot Error: {e}")
+        flash("Erreur système lors de la suppression.", "error")
+    finally:
+        cursor.close()
+        conn.close()
+        
+    return redirect(url_for('stylist_schedule'))
+
 @app.route("/admin/dashboard")
 def admin_dashboard():
     if 'user_id' not in session or session.get('role') not in ['SuperAdmin', 'Admin']:

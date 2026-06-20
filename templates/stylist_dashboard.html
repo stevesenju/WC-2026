@@ -22,7 +22,10 @@
 <div class="dashboard-container">
     <div class="page-header">
         <h2>Bonjour, {{ stylist_name }}</h2>
-        <a href="{{ url_for('admin_logout') }}" style="color: #c62828; font-weight: 600; text-decoration: none;">Déconnexion</a>
+        <div style="display: flex; gap: 1rem; align-items: center;">
+            <a href="{{ url_for('stylist_schedule') }}" style="background: #333; color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; font-size: 0.9rem; font-weight: 600;">Gérer mon horaire</a>
+            <a href="{{ url_for('admin_logout') }}" style="color: #c62828; font-weight: 600; text-decoration: none;">Déconnexion</a>
+        </div>
     </div>
 
     <p style="color: #666; margin-bottom: 2rem;">Voici vos rendez-vous confirmés. Votre planning est automatiquement mis à jour.</p>
@@ -53,7 +56,7 @@
                     <td>{{ appt.service_name }}</td>
                     <td>
                         {% if appt.transport_req %}
-                            <span style="color: #C5A059;"> Domicile</span>
+                            <span style="color: #C5A059;">🚗 Domicile</span>
                             <div style="font-size: 0.75rem; color: #999;">{{ appt.client_adresse }}</div>
                         {% else %}
                             <span style="color: #4A90E2;">🏢 Studio</span>
