@@ -34,10 +34,10 @@
         </p>
     </div>
 
-    <div style="text-align: left; padding: 1.5rem; border-top: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); border-radius: 8px;">
+    <div style="text-align: left; padding: 1.5rem; border-top: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); border-radius: 8px; margin-bottom: 1.5rem;">
         <h4 style="margin-top: 0; margin-bottom: 1rem; color: var(--gold-primary);">Détails de votre réservation</h4>
         
-        <p style="margin: 0.5rem 0;"> <strong>Date :</strong> {{ booking.date_rendezvous.strftime('%A %d %B %Y') }} à {{ booking.heure_rendezvous.strftime('%H:%M') }}</p>
+        <p style="margin: 0.5rem 0;"> <strong>Date :</strong> {{ booking.date_rendezvous.strftime('%d/%m/%Y') }} à {{ booking.heure_rendezvous.strftime('%H:%M') }}</p>
         
         {% if booking.transport_req %}
             <p style="margin: 0.5rem 0;">📍 <strong>Lieu :</strong> À Domicile ({{ booking.client_adresse }})</p>
@@ -45,7 +45,20 @@
             <p style="margin: 0.5rem 0;">📍 <strong>Lieu :</strong> En Studio {% if booking.adresse_studio %}({{ booking.adresse_studio }}){% endif %}</p>
         {% endif %}
         
-        <p style="margin: 0.5rem 0;"> <strong>Prix total prévu :</strong> {{ booking.prix_final }}$ <span style="font-size: 0.85rem; color: #aaa;">(Le dépôt de 5$ sera déduit de ce montant lors du paiement final)</span></p>
+        <p style="margin: 0.5rem 0;"> <strong>Prix total prévu :</strong> {{ booking.prix_final }}$ <span style="font-size: 0.85rem; color: #aaa;">(Le dépôt de 5$ sera déduit)</span></p>
+    </div>
+
+    <!-- PETITE SECTION CONTACT AJOUTÉE ICI -->
+    <div style="padding-top: 1rem; border-top: 1px solid rgba(197, 160, 89, 0.2);">
+        <p style="color: #aaa; font-size: 0.95rem; margin-bottom: 1rem;">Une question ou un imprévu ? Contactez-nous :</p>
+        <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
+            <a href="https://wa.me/18195551234" target="_blank" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: rgba(37, 211, 102, 0.1); color: #25D366; border: 1px solid #25D366; border-radius: 4px; text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: 0.2s;">
+                💬 WhatsApp
+            </a>
+            <a href="tel:+18195551234" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: rgba(255, 255, 255, 0.05); color: #fff; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 4px; text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: 0.2s;">
+                📞 (819) 555-1234
+            </a>
+        </div>
     </div>
 
     <a href="/" class="btn-gold mt-4" style="display: inline-block; padding: 0.8rem 2rem; margin-top: 2rem;">Retour à l'accueil</a>

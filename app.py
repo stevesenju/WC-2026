@@ -616,15 +616,26 @@ def admin_manage():
         adresse_studio = request.form.get("adresse_studio", "")
 
         try:
+            # 1. CREATE PUBLIC PROFILE AND GET ID
             cursor.execute("""
                 INSERT INTO coiffeuses (alias, telephone, email, deplacement_pref, adresse_studio)
-                VALUES (%s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s) RETURNING id
             """, (alias, telephone, email, pref, adresse_studio))
+            
+            new_coiffeuse_id = cursor.fetchone()['id']
+            
+            # 2. AUTOMATICALLY CREATE LOGIN ACCOUNT LINKED TO THIS ID
+            default_pw = generate_password_hash("Coiffure123!")
+            cursor.execute("""
+                INSERT INTO users (email, password_hash, role, coiffeuse_id)
+                VALUES (%s, %s, 'Agent', %s)
+            """, (email, default_pw, new_coiffeuse_id))
+            
             conn.commit()
-            flash(f"L'opérateur {alias} a été ajouté avec succès !", "success")
+            flash(f"Profil ajouté ! Ils peuvent se connecter avec l'email et le mot de passe: Coiffure123!", "success")
         except psycopg2.errors.UniqueViolation:
             conn.rollback()
-            flash("Ce nom d'affichage existe déjà.", "error")
+            flash("Erreur: Cet email ou nom d'affichage est déjà utilisé.", "error")
         except Exception as e:
             conn.rollback()
             print(f"Error adding stylist: {e}")
@@ -659,16 +670,26 @@ def edit_stylist(stylist_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
+        # Check old email to update user account if changed
+        cursor.execute("SELECT email FROM coiffeuses WHERE id = %s", (stylist_id,))
+        old_email_row = cursor.fetchone()
+        old_email = old_email_row[0] if old_email_row else None
+
         cursor.execute("""
             UPDATE coiffeuses 
             SET alias = %s, telephone = %s, email = %s, deplacement_pref = %s, adresse_studio = %s
             WHERE id = %s
         """, (alias, telephone, email, pref, adresse_studio, stylist_id))
+        
+        # If admin changed their email, change their login email too!
+        if old_email and old_email != email:
+            cursor.execute("UPDATE users SET email = %s WHERE coiffeuse_id = %s", (email, stylist_id))
+
         conn.commit()
         flash("Le profil a été mis à jour avec succès !", "success")
     except psycopg2.errors.UniqueViolation:
         conn.rollback()
-        flash("Erreur: Ce nom est déjà pris.", "error")
+        flash("Erreur: Cet email ou nom est déjà pris.", "error")
     except Exception as e:
         conn.rollback()
         print(f"Update Error: {e}")
