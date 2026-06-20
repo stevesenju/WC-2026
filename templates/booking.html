@@ -23,6 +23,10 @@
     .stylist-card.selected { border-color: #111; background: #fafafa; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
     .stylist-name { font-weight: 800; font-size: 1.15rem; color: #111; margin-bottom: 0.25rem; }
     .stylist-price { color: #111; font-weight: 800; font-size: 1.25rem; }
+    
+    /* Close Match Separation Styles */
+    .close-match-section { margin-top: 2rem; padding-top: 1.5rem; border-top: 2px dashed #ddd; display: none; }
+    .close-match-title { color: #666; font-size: 1rem; font-weight: 700; margin-bottom: 1rem; display: block; }
     .close-match-badge { display: inline-block; background: #ff3333; color: #fff; font-size: 0.85rem; font-weight: 700; padding: 4px 10px; border-radius: 12px; margin-top: 0.5rem; }
 
     /* Modern Time Pills */
@@ -49,37 +53,34 @@
         <input type="hidden" name="stylist_id" id="stylist_id" required>
         <input type="hidden" name="selected_time" id="selected_time" required>
 
+        <!-- STEP 1: DATE & STYLIST SELECTION -->
         <div class="form-section">
-            <h3>1. Vos Informations Personnelles</h3>
-            <div class="form-group">
-                <label>Nom complet</label>
-                <input type="text" name="client_nom" class="form-control" required>
-            </div>
-            <div class="form-group">
-                <label>Numéro de téléphone</label>
-                <input type="tel" name="client_telephone" class="form-control" required>
-            </div>
-            <div class="form-group">
-                <label>Adresse courriel</label>
-                <input type="email" name="client_email" class="form-control" required>
-            </div>
-        </div>
-
-        <div class="form-section">
-            <h3>2. Date & Disponibilités</h3>
+            <h3>1. Date & Disponibilités</h3>
             <div class="form-group">
                 <label>Choisissez une date</label>
                 <input type="date" name="selected_date" id="selected_date" class="form-control" required>
             </div>
 
+            <!-- Stylist Container -->
             <div class="form-group" id="stylist-container" style="display: none;">
                 <label>Coiffeuses disponibles</label>
-                <div class="stylist-grid" id="stylist_grid">
+                
+                <!-- Exact Matches Grid -->
+                <div class="stylist-grid" id="exact_stylist_grid">
                     <!-- Cards injected here via JS -->
+                </div>
+                
+                <!-- Close Matches Grid (Separated!) -->
+                <div class="close-match-section" id="close-matches-container">
+                    <span class="close-match-title">🗓️ Autres disponibilités proches :</span>
+                    <div class="stylist-grid" id="close_stylist_grid">
+                        <!-- Close match cards injected here -->
+                    </div>
                 </div>
             </div>
 
-            <div class="form-group" id="time-container" style="display: none;">
+            <!-- Time Container -->
+            <div class="form-group" id="time-container" style="display: none; margin-top: 2rem;">
                 <label>Heures disponibles</label>
                 <div class="time-grid" id="time_grid">
                     <!-- Time pills injected here via JS -->
@@ -87,8 +88,9 @@
             </div>
         </div>
 
+        <!-- STEP 2: LOCATION -->
         <div class="form-section" id="location-section" style="display: none;">
-            <h3>3. Lieu du Rendez-vous</h3>
+            <h3>2. Lieu du Rendez-vous</h3>
             <div class="form-group">
                 <label>Où souhaitez-vous être coiffé(e) ?</label>
                 <select name="lieu_service" id="lieu_service" class="form-control" required>
@@ -114,6 +116,23 @@
             </div>
         </div>
 
+        <!-- STEP 3: PERSONAL INFO -->
+        <div class="form-section" id="personal-info-section">
+            <h3>3. Vos Informations Personnelles</h3>
+            <div class="form-group">
+                <label>Nom complet</label>
+                <input type="text" name="client_nom" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label>Numéro de téléphone</label>
+                <input type="tel" name="client_telephone" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label>Adresse courriel</label>
+                <input type="email" name="client_email" class="form-control" required>
+            </div>
+        </div>
+
         <button type="submit" class="btn-submit" id="submitBtn">Confirmer la Réservation</button>
     </form>
 </div>
@@ -122,7 +141,10 @@
     const serviceId = "{{ service.id }}";
     const dateInput = document.getElementById('selected_date');
     const stylistContainer = document.getElementById('stylist-container');
-    const stylistGrid = document.getElementById('stylist_grid');
+    const exactStylistGrid = document.getElementById('exact_stylist_grid');
+    const closeMatchesContainer = document.getElementById('close-matches-container');
+    const closeStylistGrid = document.getElementById('close_stylist_grid');
+    
     const timeContainer = document.getElementById('time-container');
     const timeGrid = document.getElementById('time_grid');
     
@@ -143,8 +165,11 @@
         const dateStr = dateInput.value;
         if (!dateStr) return;
 
-        stylistGrid.innerHTML = '<p style="color: #333; font-weight: 700;">Recherche en cours...</p>';
+        // Reset the UI
+        exactStylistGrid.innerHTML = '<p style="color: #333; font-weight: 700;">Recherche en cours...</p>';
+        closeStylistGrid.innerHTML = '';
         stylistContainer.style.display = 'block';
+        closeMatchesContainer.style.display = 'none';
         timeContainer.style.display = 'none';
         locationSection.style.display = 'none';
         hiddenStylistId.value = '';
@@ -153,22 +178,28 @@
         fetch(`/api/available-stylists/${serviceId}/${dateStr}`)
             .then(res => res.json())
             .then(data => {
-                stylistGrid.innerHTML = '';
+                exactStylistGrid.innerHTML = '';
                 
+                // If completely empty
                 if (data.exact_matches.length === 0 && data.close_matches.length === 0) {
-                    stylistGrid.innerHTML = '<p style="color: #ff3333; font-weight: 800;">Aucune coiffeuse disponible à cette date.</p>';
+                    exactStylistGrid.innerHTML = '<p style="color: #ff3333; font-weight: 800;">Aucune coiffeuse disponible autour de cette date.</p>';
                     return;
                 }
 
                 // Render Exact Matches
-                data.exact_matches.forEach(stylist => {
-                    stylistGrid.innerHTML += createStylistCard(stylist, false);
-                });
+                if (data.exact_matches.length === 0) {
+                    exactStylistGrid.innerHTML = `<p style="color: #666; font-style: italic; font-weight: 600;">Aucune disponibilité exacte pour le ${dateStr}.</p>`;
+                } else {
+                    data.exact_matches.forEach(stylist => {
+                        exactStylistGrid.innerHTML += createStylistCard(stylist, false);
+                    });
+                }
 
-                // Render Close Matches
+                // Render Close Matches in their own separate section
                 if (data.close_matches.length > 0) {
+                    closeMatchesContainer.style.display = 'block';
                     data.close_matches.forEach(stylist => {
-                        stylistGrid.innerHTML += createStylistCard(stylist, true);
+                        closeStylistGrid.innerHTML += createStylistCard(stylist, true);
                     });
                 }
             });
@@ -195,7 +226,7 @@
             return;
         }
 
-        // Highlight selected card
+        // Highlight selected card (remove from both grids first)
         document.querySelectorAll('.stylist-card').forEach(c => c.classList.remove('selected'));
         cardElement.classList.add('selected');
         
@@ -265,7 +296,7 @@
         }
     });
 
-    // 5. DOUBLE CLICK PROTECTION (THE CLOUD KILLER FIX)
+    // 5. DOUBLE CLICK PROTECTION
     document.getElementById('bookingForm').addEventListener('submit', function(e) {
         // Double check custom validation
         if (!hiddenStylistId.value || !hiddenTime.value) {
