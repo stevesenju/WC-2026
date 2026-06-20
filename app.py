@@ -4,6 +4,7 @@ import psycopg2.extras
 import os
 import json
 from datetime import datetime, timedelta
+import pytz
 from dotenv import load_dotenv
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -22,6 +23,16 @@ UPLOAD_FOLDER = os.path.join('static', 'uploads', 'styles')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
+# --- TIMEZONE HELPERS ---
+def get_local_now():
+    """Returns the exact current date and time in Quebec (EST/EDT)"""
+    return datetime.now(pytz.timezone('America/Toronto'))
+
+def get_local_today():
+    """Returns exactly today's date in Quebec"""
+    return get_local_now().date()
+
+# --- DATABASE & EMAIL ---
 def get_db_connection():
     database_url = os.getenv("DATABASE_URL")
     return psycopg2.connect(database_url)
@@ -111,6 +122,7 @@ def get_available_stylists(service_id, date_str):
         imgs = [img['image_url'] for img in cursor.fetchall()]
         return {"id": c_id, "alias": alias, "deplacement_pref": pref, "prix": float(prix), "images": imgs, "date_dispo": date_dispo}
 
+    # Fetch Exact Matches
     cursor.execute("""
         SELECT DISTINCT c.id, c.alias, c.deplacement_pref, cs.prix 
         FROM coiffeuses c
@@ -118,8 +130,14 @@ def get_available_stylists(service_id, date_str):
         JOIN horaires h ON c.id = h.coiffeuse_id
         WHERE cs.service_id = %s AND h.date_jour = %s AND h.statut = 'Libre';
     """, (service_id, date_str))
-    exact = [build_stylist(row['id'], row['alias'], row['deplacement_pref'], row['prix']) for row in cursor.fetchall()]
     
+    exact = []
+    exact_ids = set()
+    for row in cursor.fetchall():
+        exact.append(build_stylist(row['id'], row['alias'], row['deplacement_pref'], row['prix']))
+        exact_ids.add(row['id'])
+    
+    # Fetch Close Matches (Filtered to prevent duplicates!)
     close = []
     if len(exact) <= 1:
         cursor.execute("""
@@ -133,10 +151,12 @@ def get_available_stylists(service_id, date_str):
               AND h.statut = 'Libre'
             ORDER BY h.date_jour ASC;
         """, (service_id, date_str, date_str, date_str))
-        exact_ids = [s['id'] for s in exact]
+        
+        seen_close_ids = set()
         for row in cursor.fetchall():
-            if row['id'] not in exact_ids:
+            if row['id'] not in exact_ids and row['id'] not in seen_close_ids:
                 close.append(build_stylist(row['id'], row['alias'], row['deplacement_pref'], row['prix'], row['date_jour'].strftime('%Y-%m-%d')))
+                seen_close_ids.add(row['id'])
     
     cursor.close()
     conn.close()
@@ -156,7 +176,6 @@ def get_times(stylist_id, date_str):
 
 @app.route("/submit-booking", methods=["POST"])
 def submit_booking():
-    # 1. Capture Form Data
     client_nom = request.form.get("client_nom")
     client_telephone = request.form.get("client_telephone")
     client_email = request.form.get("client_email")
@@ -170,30 +189,26 @@ def submit_booking():
     selected_date = request.form.get("selected_date")
     selected_time = request.form.get("selected_time")
 
-    # Generate a random 6-character code
     code_interac = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
     conn = get_db_connection()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     try:
-        # Get the exact base price
         cursor.execute("SELECT prix FROM coiffeuse_services WHERE coiffeuse_id = %s AND service_id = %s", (stylist_id, service_id))
         prix_base = float(cursor.fetchone()['prix'])
 
-        # 2. Calculate Transport Logic & Final Price
         frais_transport = 0.0
         transport_req = False
         
         if lieu_service == "domicile":
             frais_transport = 10.0
-            transport_req = True # Stylist needs to travel
+            transport_req = True
         elif lieu_service == "studio" and besoin_transport == "oui":
             frais_transport = 10.0
-            transport_req = True # Client needs CoiffConnect transport
+            transport_req = True
             
         prix_total = prix_base + frais_transport
 
-        # Look up the actual horaire_id using the date and time
         cursor.execute("""
             SELECT id FROM horaires 
             WHERE coiffeuse_id = %s AND date_jour = %s AND heure_debut = %s AND statut = 'Libre'
@@ -205,7 +220,6 @@ def submit_booking():
         
         horaire_id = horaire_row['id']
 
-        # 3. Insert Booking with code_interac
         cursor.execute("""
             INSERT INTO rendezvous (
                 client_nom, client_email, client_telephone, client_adresse, 
@@ -258,7 +272,6 @@ def submit_booking():
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
     if 'user_id' in session:
-        # Redirect based on role
         if session.get('role') == 'Agent':
             return redirect(url_for('stylist_dashboard'))
         return redirect(url_for('admin_dashboard'))
@@ -281,7 +294,6 @@ def admin_login():
                 
                 flash(f"Bienvenue, accès {user['role']} accordé.", "success")
                 
-                # Split traffic here
                 if user['role'] == 'Agent':
                     return redirect(url_for('stylist_dashboard'))
                 return redirect(url_for('admin_dashboard'))
@@ -316,12 +328,10 @@ def stylist_dashboard():
     coiffeuse_id = session.get('coiffeuse_id')
 
     try:
-        # Fetch stylist alias
         cursor.execute("SELECT alias FROM coiffeuses WHERE id = %s", (coiffeuse_id,))
         stylist = cursor.fetchone()
         stylist_name = stylist['alias'] if stylist else "Profil"
 
-        # Fetch confirmed/completed/cancelled appointments (NOT pending)
         cursor.execute("""
             SELECT r.id, r.client_nom, r.client_email, r.client_telephone, r.transport_req, r.client_adresse, r.prix_total, r.statut, r.code_interac,
                    h.date_jour, h.heure_debut, s.nom as service_name
@@ -334,8 +344,7 @@ def stylist_dashboard():
         
         all_appointments = cursor.fetchall()
         
-        # Categorize appointments based on status and current time
-        now = datetime.now()
+        now_local = get_local_now()
         upcoming = []
         past = []
         cancelled = []
@@ -344,14 +353,14 @@ def stylist_dashboard():
             if appt['statut'] == 'Annule':
                 cancelled.append(appt)
             else:
-                # Combine date and time to see if it has passed
                 appt_dt = datetime.combine(appt['date_jour'], appt['heure_debut'])
-                if appt_dt >= now:
+                appt_dt_aware = pytz.timezone('America/Toronto').localize(appt_dt)
+                
+                if appt_dt_aware >= now_local:
                     upcoming.append(appt)
                 else:
                     past.append(appt)
                     
-        # Reverse past and cancelled so the most recent ones show at the top of their sections
         past.reverse()
         cancelled.reverse()
         
@@ -375,6 +384,7 @@ def stylist_schedule():
     conn = get_db_connection()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     coiffeuse_id = session.get('coiffeuse_id')
+    today_local = get_local_today()
 
     if request.method == "POST":
         date_jour = request.form.get("date_jour")
@@ -420,17 +430,15 @@ def stylist_schedule():
         return redirect(url_for('stylist_schedule'))
 
     try:
-        # Fetch Stylist Alias
         cursor.execute("SELECT alias FROM coiffeuses WHERE id = %s", (coiffeuse_id,))
         stylist_name = cursor.fetchone()['alias']
 
-        # Fetch their upcoming free slots
         cursor.execute("""
             SELECT id, date_jour, heure_debut, heure_fin, statut 
             FROM horaires 
-            WHERE coiffeuse_id = %s AND date_jour >= CURRENT_DATE AND statut = 'Libre'
+            WHERE coiffeuse_id = %s AND date_jour >= %s AND statut = 'Libre'
             ORDER BY date_jour ASC, heure_debut ASC;
-        """, (coiffeuse_id,))
+        """, (coiffeuse_id, today_local))
         upcoming_slots = cursor.fetchall()
     except Exception as e:
         print(f"Fetch Error: {e}")
@@ -452,7 +460,6 @@ def stylist_delete_slot(slot_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        # Security check: Make sure they own this slot and it's 'Libre'
         cursor.execute("SELECT statut, coiffeuse_id FROM horaires WHERE id = %s", (slot_id,))
         row = cursor.fetchone()
         
@@ -480,7 +487,6 @@ def admin_dashboard():
 
     conn = get_db_connection()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-    
     role = session.get('role')
 
     try:
@@ -505,7 +511,6 @@ def admin_dashboard():
 
     return render_template("admin/dashboard.html", appointments=appointments, role=role)
 
-# --- CANCELLATION ROUTE ---
 @app.route("/admin/cancel/<int:appt_id>", methods=["POST"])
 def cancel_appointment(appt_id):
     if session.get('role') not in ['SuperAdmin', 'Admin']:
@@ -682,6 +687,7 @@ def admin_schedule():
 
     conn = get_db_connection()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    today_local = get_local_today()
 
     if request.method == "POST":
         coiffeuse_id = request.form.get("coiffeuse_id")
@@ -735,9 +741,9 @@ def admin_schedule():
             SELECT h.id, c.id as coiffeuse_id, c.alias, h.date_jour, h.heure_debut, h.heure_fin, h.statut 
             FROM horaires h
             JOIN coiffeuses c ON h.coiffeuse_id = c.id
-            WHERE h.date_jour >= CURRENT_DATE AND h.statut != 'Supprime'
+            WHERE h.date_jour >= %s AND h.statut != 'Supprime'
             ORDER BY h.date_jour ASC, h.heure_debut ASC;
-        """)
+        """, (today_local,))
         upcoming_slots = cursor.fetchall()
     except Exception as e:
         print(f"Fetch Error: {e}")
