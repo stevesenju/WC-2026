@@ -315,7 +315,7 @@ def stylist_dashboard():
 
         # Fetch confirmed/completed/cancelled appointments (NOT pending)
         cursor.execute("""
-            SELECT r.id, r.client_nom, r.client_telephone, r.transport_req, r.client_adresse, r.prix_total, r.statut, r.code_interac,
+            SELECT r.id, r.client_nom, r.client_email, r.client_telephone, r.transport_req, r.client_adresse, r.prix_total, r.statut, r.code_interac,
                    h.date_jour, h.heure_debut, s.nom as service_name
             FROM rendezvous r
             JOIN horaires h ON r.horaire_id = h.id

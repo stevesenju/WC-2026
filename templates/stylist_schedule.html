@@ -3,37 +3,45 @@
 
 {% block content %}
 <style>
-    .dashboard-container { max-width: 900px; margin: 2rem auto; padding: 2rem; background: #fff; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-    .page-header { border-bottom: 2px solid #C5A059; margin-bottom: 2rem; padding-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; }
-    .page-header h2 { font-family: 'Playfair Display', serif; color: #333; margin: 0; }
+    .dashboard-container { max-width: 900px; margin: 2rem auto; padding: 2rem; background: #fff; border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.08); }
+    .page-header { border-bottom: 3px solid #C5A059; margin-bottom: 2rem; padding-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+    .page-header h2 { font-family: 'Playfair Display', serif; color: #111; margin: 0; font-weight: 700; font-size: 2rem; }
     
-    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1.5rem; margin-bottom: 1rem; }
     .form-group { margin-bottom: 1rem; }
-    .form-group label { display: block; font-weight: 600; margin-bottom: 0.3rem; font-size: 0.9rem; }
-    .form-control { width: 100%; padding: 0.6rem; border: 1px solid #ddd; border-radius: 4px; }
+    .form-group label { display: block; font-weight: 800; margin-bottom: 0.5rem; font-size: 1rem; color: #111; }
+    .form-control { width: 100%; padding: 0.8rem; border: 2px solid #ccc; border-radius: 6px; font-size: 1rem; font-weight: 600; color: #111; background: #fff; transition: 0.2s; }
+    .form-control:focus { border-color: #C5A059; outline: none; }
     
-    .btn-submit { background: #C5A059; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 4px; font-weight: 600; cursor: pointer; }
+    .btn-submit { background: #C5A059; color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; font-weight: 800; font-size: 1.05rem; cursor: pointer; transition: 0.2s; width: 100%; margin-top: 1rem; }
     .btn-submit:hover { background: #b08d4b; }
     
-    .slot-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-    .slot-table th { text-align: left; padding: 1rem; background: #f8f8f8; border-bottom: 2px solid #eee; }
-    .slot-table td { padding: 1rem; border-bottom: 1px solid #eee; }
+    .btn-back { background: #111; color: white; text-decoration: none; padding: 0.6rem 1.2rem; border-radius: 6px; font-weight: 700; font-size: 1rem; border: 2px solid #111; transition: 0.2s; }
+    .btn-back:hover { background: #333; }
+
+    /* Grouped Weekly/Daily View Styles */
+    .schedule-board { margin-top: 2rem; display: flex; flex-direction: column; gap: 2rem; }
+    .day-group { background: #fdfaf5; border: 2px solid #eaddcf; border-radius: 10px; padding: 1.5rem; }
+    .day-title { font-family: 'Playfair Display', serif; font-size: 1.5rem; color: #111; margin-top: 0; margin-bottom: 1rem; font-weight: 700; border-bottom: 2px solid #eaddcf; padding-bottom: 0.5rem; }
     
-    .btn-danger { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: 600; }
-    .btn-danger:hover { background: #ffcdd2; }
+    .slots-container { display: flex; flex-wrap: wrap; gap: 1rem; }
+    .slot-pill { background: #fff; border: 2px solid #ddd; padding: 0.5rem 1rem; border-radius: 30px; display: flex; align-items: center; gap: 0.8rem; font-weight: 700; color: #111; font-size: 1.05rem; transition: 0.2s; }
+    .slot-pill:hover { border-color: #C5A059; box-shadow: 0 4px 8px rgba(0,0,0,0.05); }
     
-    .btn-back { background: #eee; color: #333; text-decoration: none; padding: 0.5rem 1rem; border-radius: 4px; font-weight: 600; font-size: 0.9rem; }
+    .btn-remove { background: #ffebee; color: #c62828; border: none; width: 24px; height: 24px; border-radius: 50%; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1rem; transition: 0.2s; }
+    .btn-remove:hover { background: #ffcdd2; color: #b71c1c; transform: scale(1.1); }
 </style>
 
 <div class="dashboard-container">
     <div class="page-header">
-        <h2>Gérer mon horaire</h2>
-        <a href="{{ url_for('stylist_dashboard') }}" class="btn-back">Retour aux rendez-vous</a>
+        <h2>Gérer mes disponibilités</h2>
+        <a href="{{ url_for('stylist_dashboard') }}" class="btn-back">Retour au calendrier</a>
     </div>
 
-    <div style="background: #fdfaf5; border: 1px solid #eaddcf; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem;">
-        <h3 style="margin-top: 0; color: #C5A059;">Générer des disponibilités</h3>
-        <p style="font-size: 0.9rem; color: #666; margin-bottom: 1rem;">Générez vos plages horaires. Le système s'assurera de ne pas créer de doublons.</p>
+    <!-- GENERATOR FORM -->
+    <div style="background: #fff; border: 2px solid #ccc; padding: 2rem; border-radius: 10px; margin-bottom: 3rem; box-shadow: 0 4px 10px rgba(0,0,0,0.03);">
+        <h3 style="margin-top: 0; color: #111; font-weight: 800; font-size: 1.4rem;">Générer des créneaux horaires</h3>
+        <p style="font-size: 1rem; color: #333; margin-bottom: 1.5rem; font-weight: 600;">Sélectionnez une date et une plage d'heures. Le système découpera ce temps en blocs.</p>
         
         <form action="{{ url_for('stylist_schedule') }}" method="POST">
             <div class="form-grid">
@@ -42,15 +50,15 @@
                     <input type="date" name="date_jour" class="form-control" required>
                 </div>
                 <div class="form-group">
-                    <label>Heure de début</label>
+                    <label>Heure de début (ex: 09:00)</label>
                     <input type="time" name="heure_debut" class="form-control" required>
                 </div>
                 <div class="form-group">
-                    <label>Heure de fin</label>
+                    <label>Heure de fin (ex: 17:00)</label>
                     <input type="time" name="heure_fin" class="form-control" required>
                 </div>
                 <div class="form-group">
-                    <label>Durée par client</label>
+                    <label>Durée du bloc</label>
                     <select name="duree_minutes" class="form-control" required>
                         <option value="60">1h (60 min)</option>
                         <option value="90">1h30 (90 min)</option>
@@ -59,44 +67,37 @@
                     </select>
                 </div>
             </div>
-            <button type="submit" class="btn-submit">Générer mes créneaux</button>
+            <button type="submit" class="btn-submit">Générer mes disponibilités</button>
         </form>
     </div>
 
-    <h3>Mes créneaux libres à venir</h3>
-    <p style="color: #888; font-size: 0.9rem;">Seuls les créneaux <strong>non réservés</strong> peuvent être supprimés.</p>
+    <!-- SCHEDULE DISPLAY (GROUPED BY DAY) -->
+    <h3 style="color: #111; font-weight: 800; font-size: 1.4rem; margin-bottom: 0.5rem;">Mes créneaux libres à venir</h3>
+    <p style="color: #333; font-size: 1rem; font-weight: 600;">Cliquez sur le "X" rouge pour retirer un créneau non réservé de votre horaire.</p>
     
-    <div style="overflow-x: auto;">
-        <table class="slot-table">
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Début</th>
-                    <th>Fin</th>
-                    <th>Statut</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for slot in slots %}
-                <tr>
-                    <td><strong>{{ slot.date_jour.strftime('%d/%m/%Y') }}</strong></td>
-                    <td>{{ slot.heure_debut.strftime('%H:%M') }}</td>
-                    <td>{{ slot.heure_fin.strftime('%H:%M') }}</td>
-                    <td><span style="background: #e8f5e9; color: #2e7d32; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.8rem; font-weight: 600;">{{ slot.statut }}</span></td>
-                    <td>
-                        <form action="{{ url_for('stylist_delete_slot', slot_id=slot.id) }}" method="POST" onsubmit="return confirm('Êtes-vous sûr de vouloir retirer ce créneau ?');" style="margin:0;">
-                            <button type="submit" class="btn-danger">Retirer</button>
+    <div class="schedule-board">
+        {% if slots %}
+            <!-- Jinja groupby perfectly organizes the flat list into neat Daily Blocks! -->
+            {% for date_grouper, day_slots in slots|groupby('date_jour') %}
+            <div class="day-group">
+                <h4 class="day-title">{{ date_grouper.strftime('%A %d %B %Y') }}</h4>
+                <div class="slots-container">
+                    {% for slot in day_slots %}
+                    <div class="slot-pill">
+                        <span>{{ slot.heure_debut.strftime('%H:%M') }} - {{ slot.heure_fin.strftime('%H:%M') }}</span>
+                        <form action="{{ url_for('stylist_delete_slot', slot_id=slot.id) }}" method="POST" style="margin:0;" onsubmit="return confirm('Retirer ce créneau ?');">
+                            <button type="submit" class="btn-remove" title="Supprimer ce créneau">&times;</button>
                         </form>
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="5" style="text-align: center; padding: 2rem; color: #999;">Aucun créneau libre à venir.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div style="text-align: center; padding: 3rem; background: #f8f9fa; border: 2px dashed #ccc; border-radius: 10px;">
+                <p style="color: #111; font-weight: 700; font-size: 1.1rem; margin: 0;">Aucun créneau libre configuré pour le moment.</p>
+            </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

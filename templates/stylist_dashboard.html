@@ -4,74 +4,93 @@
 
 {% block content %}
 <style>
-    /* Dashboard specific overrides to match your theme */
-    .dashboard-container { max-width: 1000px; margin: 2rem auto; padding: 2rem; background: #fff; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-    .page-header { border-bottom: 2px solid #C5A059; margin-bottom: 2rem; padding-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; }
-    .page-header h2 { font-family: 'Playfair Display', serif; color: #333; }
+    /* Dashboard specific overrides for high readability */
+    .dashboard-container { max-width: 1000px; margin: 2rem auto; padding: 2rem; background: #fff; border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.08); }
+    .page-header { border-bottom: 3px solid #C5A059; margin-bottom: 2rem; padding-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+    .page-header h2 { font-family: 'Playfair Display', serif; color: #111; margin: 0; font-weight: 700; font-size: 2rem; }
     
-    .appt-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-    .appt-table th { text-align: left; padding: 1rem; background: #f8f8f8; color: #555; border-bottom: 2px solid #eee; }
-    .appt-table td { padding: 1rem; border-bottom: 1px solid #eee; }
+    .btn-action { background: #111; color: white; padding: 0.6rem 1.2rem; border-radius: 6px; text-decoration: none; font-size: 1rem; font-weight: 700; transition: 0.2s; border: 2px solid #111; }
+    .btn-action:hover { background: #333; color: #fff; }
+    .btn-logout { color: #c62828; font-weight: 700; text-decoration: none; font-size: 1rem; border: 2px solid transparent; padding: 0.6rem; transition: 0.2s; }
+    .btn-logout:hover { border-bottom: 2px solid #c62828; }
+
+    /* Modern Card Layout for Mobile Optimization */
+    .appt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; margin-top: 1rem; }
     
-    .status-pill { padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.85rem; font-weight: 600; }
-    .status-confirme { background: #e8f5e9; color: #2e7d32; }
-    .status-complete { background: #eceff1; color: #546e7a; }
-    .status-annule { background: #ffebee; color: #c62828; }
+    .appt-card { border: 2px solid #ddd; border-radius: 12px; background: #fff; overflow: hidden; display: flex; flex-direction: column; transition: 0.3s box-shadow; }
+    .appt-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.1); border-color: #ccc; }
+    
+    .appt-header { background: #fdfaf5; border-bottom: 2px solid #ddd; padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; }
+    .appt-date { font-weight: 800; color: #111; font-size: 1.1rem; }
+    
+    .appt-body { padding: 1.5rem; display: flex; flex-direction: column; gap: 0.8rem; }
+    .client-name { margin: 0; color: #111; font-weight: 800; font-size: 1.3rem; }
+    .client-contact { font-size: 1rem; color: #222; font-weight: 600; margin: 0; line-height: 1.6; }
+    
+    .service-badge { display: inline-block; background: #111; color: #fff; padding: 0.4rem 0.8rem; border-radius: 6px; font-weight: 700; font-size: 0.95rem; margin-bottom: 0.5rem; align-self: flex-start; }
+    
+    .loc-box { background: #f8f9fa; border: 2px solid #eee; border-radius: 8px; padding: 1rem; margin-top: auto; }
+    .loc-title { font-weight: 800; margin-bottom: 0.3rem; font-size: 1.05rem; }
+    .loc-address { color: #111; font-weight: 700; font-size: 1rem; margin: 0; line-height: 1.4; }
+    
+    .status-pill { padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.85rem; font-weight: 800; border: 1px solid transparent; }
+    .status-confirme { background: #e8f5e9; color: #1b5e20; border-color: #c8e6c9; }
+    .status-complete { background: #eceff1; color: #37474f; border-color: #cfd8dc; }
+    .status-annule { background: #ffebee; color: #b71c1c; border-color: #ffcdd2; }
 </style>
 
 <div class="dashboard-container">
     <div class="page-header">
-        <h2>Bonjour, {{ stylist_name }}</h2>
-        <div style="display: flex; gap: 1rem; align-items: center;">
-            <a href="{{ url_for('stylist_schedule') }}" style="background: #333; color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; font-size: 0.9rem; font-weight: 600;">Gérer mon horaire</a>
-            <a href="{{ url_for('admin_logout') }}" style="color: #c62828; font-weight: 600; text-decoration: none;">Déconnexion</a>
+        <h2>Mon Calendrier</h2>
+        <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+            <a href="{{ url_for('stylist_schedule') }}" class="btn-action">Gérer mes disponibilités</a>
+            <a href="{{ url_for('admin_logout') }}" class="btn-logout">Déconnexion</a>
         </div>
     </div>
 
-    <p style="color: #666; margin-bottom: 2rem;">Voici vos rendez-vous confirmés. Votre planning est automatiquement mis à jour.</p>
+    <p style="color: #222; margin-bottom: 2rem; font-weight: 600; font-size: 1.1rem;">Bienvenue, <strong>{{ stylist_name }}</strong>. Voici vos rendez-vous confirmés.</p>
 
-    <div style="overflow-x: auto;">
-        {% if appointments %}
-        <table class="appt-table">
-            <thead>
-                <tr>
-                    <th>Date & Heure</th>
-                    <th>Client</th>
-                    <th>Service</th>
-                    <th>Type</th>
-                    <th>Statut</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for appt in appointments %}
-                <tr>
-                    <td>
-                        <div style="font-weight: 600;">{{ appt.date_jour.strftime('%d/%m/%Y') }}</div>
-                        <div style="color: #888;">{{ appt.heure_debut.strftime('%H:%M') }}</div>
-                    </td>
-                    <td>
-                        <div style="font-weight: 600;">{{ appt.client_nom }}</div>
-                        <div style="font-size: 0.85rem; color: #777;">{{ appt.client_telephone }}</div>
-                    </td>
-                    <td>{{ appt.service_name }}</td>
-                    <td>
-                        {% if appt.transport_req %}
-                            <span style="color: #C5A059;">🚗 Domicile</span>
-                            <div style="font-size: 0.75rem; color: #999;">{{ appt.client_adresse }}</div>
-                        {% else %}
-                            <span style="color: #4A90E2;">🏢 Studio</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <span class="status-pill status-{{ appt.statut | lower }}">{{ appt.statut }}</span>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <p style="text-align: center; padding: 3rem; color: #999;">Aucun rendez-vous pour le moment.</p>
-        {% endif %}
+    {% if appointments %}
+    <div class="appt-grid">
+        {% for appt in appointments %}
+        <div class="appt-card">
+            <!-- Header: Date and Status -->
+            <div class="appt-header">
+                <span class="appt-date">{{ appt.date_jour.strftime('%d/%m/%Y') }} - {{ appt.heure_debut.strftime('%H:%M') }}</span>
+                <span class="status-pill status-{{ appt.statut | lower }}">{{ appt.statut }}</span>
+            </div>
+            
+            <!-- Body: Client Info -->
+            <div class="appt-body">
+                <span class="service-badge">{{ appt.service_name }}</span>
+                
+                <div>
+                    <h3 class="client-name">{{ appt.client_nom }}</h3>
+                    <div class="client-contact">
+                        📞 {{ appt.client_telephone }}<br>
+                        ✉️ {{ appt.client_email }}
+                    </div>
+                </div>
+                
+                <!-- Location Box (Emphasized) -->
+                <div class="loc-box">
+                    {% if appt.transport_req %}
+                        <div class="loc-title" style="color: #C5A059;">🚗 Déplacement à Domicile</div>
+                        <p class="loc-address">📍 {{ appt.client_adresse }}</p>
+                    {% else %}
+                        <div class="loc-title" style="color: #2c3e50;">🏢 En Studio</div>
+                        <p class="loc-address" style="color: #333; font-weight: 600;">Le client vient à votre studio.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
     </div>
+    {% else %}
+        <div style="text-align: center; padding: 4rem 2rem; background: #f8f9fa; border-radius: 12px; border: 2px dashed #ccc;">
+            <h3 style="color: #111; font-weight: 800; font-size: 1.5rem; margin-bottom: 0.5rem;">Aucun rendez-vous</h3>
+            <p style="color: #333; font-weight: 600; font-size: 1.1rem;">Vous n'avez pas de rendez-vous confirmés pour le moment.</p>
+        </div>
+    {% endif %}
 </div>
 {% endblock %}
