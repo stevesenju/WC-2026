@@ -1,189 +1,175 @@
 {% extends 'base.html' %}
-
-{% block title %}Gestion du Personnel | Coiff'Connect{% endblock %}
+{% block title %}Gestion du Personnel - Coiff'Connect{% endblock %}
 
 {% block content %}
-<div class="admin-container">
-    <div class="admin-header">
-        <div>
-            <h2>Gestion du <span class="gold-text">Personnel</span></h2>
-            <p>Ajoutez et gérez les coiffeuses de la plateforme.</p>
-        </div>
-        <div class="admin-actions">
-            <a href="/admin/dashboard" class="btn-outline">← Retour au Tableau</a>
-        </div>
+<style>
+    .manage-container { max-width: 1100px; margin: 2rem auto; padding: 2rem; }
+    .page-header { border-bottom: 3px solid #C5A059; margin-bottom: 2rem; padding-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+    .page-header h2 { font-family: 'Playfair Display', serif; color: #111; margin: 0; font-size: 2.2rem; font-weight: 700; }
+    
+    .btn-back { background: #111; color: white; text-decoration: none; padding: 0.6rem 1.2rem; border-radius: 6px; font-weight: 700; font-size: 1rem; border: 2px solid #111; transition: 0.2s; }
+    .btn-back:hover { background: #333; color: white; }
+
+    /* Form Styles */
+    .form-card { background: #fff; padding: 2.5rem; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 2px solid #eee; margin-bottom: 3rem; }
+    .form-card h3 { margin-top: 0; color: #111; font-weight: 800; font-size: 1.5rem; margin-bottom: 1.5rem; }
+    
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; }
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; font-weight: 800; margin-bottom: 0.5rem; color: #111; font-size: 0.95rem; }
+    .form-control { width: 100%; padding: 0.8rem; border: 2px solid #ccc; border-radius: 6px; font-weight: 600; color: #111; font-size: 1rem; transition: 0.3s; background: #fff; }
+    .form-control:focus { border-color: #C5A059; outline: none; }
+    
+    .btn-submit { background: #C5A059; color: white; padding: 1rem 2rem; font-weight: 800; border: none; border-radius: 6px; font-size: 1.1rem; cursor: pointer; transition: 0.3s; width: 100%; margin-top: 1.5rem; }
+    .btn-submit:hover { background: #b08d4b; }
+
+    /* Personnel Grid (Modern Cards instead of table) */
+    .personnel-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; }
+    .person-card { background: #fff; border: 2px solid #ddd; border-radius: 12px; padding: 1.5rem; transition: 0.2s; display: flex; flex-direction: column; }
+    .person-card:hover { border-color: #C5A059; box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
+    
+    .role-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 800; margin-bottom: 1rem; align-self: flex-start; }
+    .role-admin { background: #ffebee; color: #c62828; }
+    .role-agent { background: #e8f5e9; color: #1b5e20; }
+    
+    .person-name { font-weight: 800; font-size: 1.3rem; color: #111; margin: 0 0 0.3rem 0; }
+    .person-email { color: #555; font-size: 0.95rem; margin-bottom: 1rem; font-weight: 600; }
+    
+    .person-details { font-size: 0.9rem; color: #333; line-height: 1.6; font-weight: 500; background: #fdfaf5; padding: 1rem; border-radius: 8px; border: 1px solid #eaddcf; margin-bottom: 1.5rem; flex-grow: 1; }
+    
+    .action-buttons { display: flex; gap: 0.5rem; border-top: 2px dashed #eee; padding-top: 1rem; }
+    .btn-delete { background: #fff; color: #c62828; border: 2px solid #ffcdd2; border-radius: 6px; padding: 0.6rem; font-weight: 700; cursor: pointer; transition: 0.2s; flex-grow: 1; }
+    .btn-delete:hover { background: #ffebee; border-color: #c62828; }
+</style>
+
+<div class="manage-container">
+    <div class="page-header">
+        <h2>Gestion de l'Équipe</h2>
+        <a href="{{ url_for('admin_dashboard') }}" class="btn-back">Retour au Tableau</a>
     </div>
 
-    <div class="manage-grid mt-4">
-        <div class="roster-section">
-            <h3>Équipe Actuelle</h3>
-            <div class="table-responsive">
-                <table class="admin-table">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Nom (Alias)</th>
-                            <th>Téléphone</th>
-                            <th>Mobilité</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for stylist in stylists %}
-                        <tr>
-                            <td>#{{ stylist.id }}</td>
-                            <td>
-                                <strong>{{ stylist.alias }}</strong><br>
-                                {% if stylist.adresse_studio %}
-                                    <small class="text-muted" style="font-size: 0.75rem;">📍 {{ stylist.adresse_studio }}</small>
-                                {% endif %}
-                            </td>
-                            <td>{{ stylist.telephone }}</td>
-                            <td>
-                                {% if stylist.deplacement_pref == 'domicile' %}
-                                    <span class="badge-domicile">À Domicile</span>
-                                {% elif stylist.deplacement_pref == 'studio' %}
-                                    <span class="badge-studio">En Studio</span>
-                                {% else %}
-                                    <span class="badge-both">Flexible</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <button onclick="openEditModal({{ stylist.id }}, '{{ stylist.alias }}', '{{ stylist.telephone }}', '{{ stylist.deplacement_pref }}', '{{ stylist.adresse_studio | default('', true) | escape }}')" class="btn-small btn-outline">Éditer</button>
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="5">Aucun membre dans l'équipe pour le moment.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <div class="add-section">
-            <div class="form-card">
-                <h3>Ajouter un Opérateur</h3>
-                <form action="/admin/manage" method="POST">
-                    <div class="form-group">
-                        <label>Nom d'affichage</label>
-                        <input type="text" name="alias" class="form-input" required placeholder="Ex: Sarah la Pro">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Numéro de Téléphone</label>
-                        <input type="tel" name="telephone" class="form-input" required placeholder="819-555-0000">
-                    </div>
-
-                    <div class="form-group">
-                        <label>Email professionnel</label>
-                        <input type="email" name="email" id="edit_email" class="form-input" required placeholder="coiffeuse@email.com">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>Préférence de Déplacement</label>
-                        <select name="deplacement_pref" class="form-input" required>
-                            <option value="domicile">À Domicile uniquement</option>
-                            <option value="studio">En Studio uniquement</option>
-                            <option value="both">Flexible (Les deux)</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Adresse du Studio</label>
-                        <input type="text" name="adresse_studio" class="form-input" placeholder="Laisser vide si 100% à domicile">
-                    </div>
-
-                    <button type="submit" class="btn-gold w-100 mt-2">Créer le Profil</button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div id="editModal" class="modal">
-    <div class="modal-content form-card">
-        <span class="close-modal" onclick="closeEditModal()">&times;</span>
-        <h3 style="margin-top: 0;">Modifier le Profil</h3>
+    <!-- FORM: CREATE NEW USER -->
+    <div class="form-card">
+        <h3>➕ Ajouter un membre</h3>
+        <p style="color: #444; font-weight: 600; margin-bottom: 2rem;">Créez un profil public et un accès de connexion en une seule étape.</p>
         
-        <form id="editForm" method="POST">
-            <div class="form-group">
-                <label>Nom d'affichage</label>
-                <input type="text" id="edit_alias" name="alias" class="form-input" required>
-            </div>
+        <form action="{{ url_for('admin_manage') }}" method="POST" autocomplete="off">
             
-            <div class="form-group">
-                <label>Téléphone</label>
-                <input type="tel" id="edit_telephone" name="telephone" class="form-input" required>
-            </div>
-            
-            <div class="form-group">
-                <label>Préférence de Déplacement</label>
-                <select id="edit_pref" name="deplacement_pref" class="form-input" required>
-                    <option value="domicile">À Domicile uniquement</option>
-                    <option value="studio">En Studio uniquement</option>
-                    <option value="both">Flexible (Les deux)</option>
-                </select>
+            <div class="form-grid" style="border-bottom: 2px dashed #eee; padding-bottom: 1.5rem; margin-bottom: 1.5rem;">
+                <div class="form-group">
+                    <label>Rôle du compte</label>
+                    <select name="role" id="roleSelect" class="form-control" onchange="toggleBarberFields()" required>
+                        <option value="Agent">Coiffeuse (Agent)</option>
+                        <option value="Admin">Administrateur système</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Courriel (Identifiant de connexion)</label>
+                    <input type="email" name="email" class="form-control" required placeholder="email@exemple.com">
+                </div>
+                <div class="form-group">
+                    <label>Mot de passe</label>
+                    <input type="password" name="password" class="form-control" required placeholder="Définir un mot de passe sécurisé">
+                </div>
             </div>
 
-            <div class="form-group">
-                <label>Adresse du Studio</label>
-                <input type="text" id="edit_adresse" name="adresse_studio" class="form-input" placeholder="Laisser vide si 100% à domicile">
+            <!-- BARBER SPECIFIC FIELDS (Hidden if Admin is selected) -->
+            <div id="barber-fields" class="form-grid">
+                <div class="form-group">
+                    <label>Nom d'affichage (Public)</label>
+                    <input type="text" name="alias" id="inputAlias" class="form-control" placeholder="Ex: Amina Beauty">
+                </div>
+                <div class="form-group">
+                    <label>Téléphone Professionnel</label>
+                    <input type="tel" name="telephone" id="inputTel" class="form-control" placeholder="Ex: 819-555-0123">
+                </div>
+                <div class="form-group">
+                    <label>Lieu de Service Offert</label>
+                    <select name="deplacement_pref" class="form-control">
+                        <option value="Both">Studio & Domicile</option>
+                        <option value="Studio">En Studio uniquement</option>
+                        <option value="Domicile">À Domicile uniquement</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Adresse du Studio (Optionnel)</label>
+                    <input type="text" name="adresse_studio" class="form-control" placeholder="Laisser vide si 100% domicile">
+                </div>
             </div>
 
-            <button type="submit" class="btn-gold w-100 mt-4">Sauvegarder les modifications</button>
+            <button type="submit" class="btn-submit">Créer le compte</button>
         </form>
     </div>
+
+    <!-- PERSONNEL LIST (MODERN CARDS) -->
+    <h3 style="color: #111; font-weight: 800; font-size: 1.5rem; margin-bottom: 1.5rem;">Équipe Actuelle</h3>
+    <div class="personnel-grid">
+        {% for p in personnel %}
+        <div class="person-card">
+            <div>
+                {% if p.role == 'SuperAdmin' or p.role == 'Admin' %}
+                    <span class="role-badge role-admin">👑 Administrateur</span>
+                    <h4 class="person-name">Gestionnaire Système</h4>
+                {% else %}
+                    <span class="role-badge role-agent">✂️ Coiffeuse</span>
+                    <h4 class="person-name">{{ p.alias }}</h4>
+                {% endif %}
+                <p class="person-email">{{ p.email }}</p>
+            </div>
+
+            {% if p.role == 'Agent' %}
+            <div class="person-details">
+                <strong>Tél :</strong> {{ p.telephone }}<br>
+                <strong>Préférence :</strong> {{ p.deplacement_pref }}<br>
+                {% if p.adresse_studio %}<strong>Studio :</strong> {{ p.adresse_studio }}{% endif %}
+            </div>
+            {% else %}
+            <div class="person-details" style="display: flex; align-items: center; justify-content: center; color: #888;">
+                Accès total à l'administration
+            </div>
+            {% endif %}
+
+            <div class="action-buttons">
+                <!-- Ensure SuperAdmin cannot accidentally delete themselves -->
+                {% if p.role != 'SuperAdmin' %}
+                <form action="{{ url_for('delete_personnel', user_id=p.user_id) }}" method="POST" style="width: 100%;" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce compte DÉFINITIVEMENT ?');">
+                    <button type="submit" class="btn-delete">Supprimer l'accès</button>
+                </form>
+                {% else %}
+                <div style="width: 100%; text-align: center; color: #aaa; font-weight: bold; font-size: 0.85rem; padding: 0.5rem;">
+                    Compte Protégé
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% else %}
+            <p style="color: #666; font-weight: bold;">Aucun membre du personnel enregistré.</p>
+        {% endfor %}
+    </div>
+
 </div>
 
 <script>
-// Javascript to handle the modal popup and inject the specific stylist's data
-function openEditModal(id, alias, phone, pref, adresse) {
-    document.getElementById('editForm').action = '/admin/manage/edit/' + id;
-    document.getElementById('edit_alias').value = alias;
-    document.getElementById('edit_telephone').value = phone;
-    document.getElementById('edit_pref').value = pref;
-    document.getElementById('edit_adresse').value = adresse || ""; // Injects the address or leaves it blank
-    document.getElementById('editModal').style.display = 'flex';
-}
+    function toggleBarberFields() {
+        const role = document.getElementById('roleSelect').value;
+        const barberFields = document.getElementById('barber-fields');
+        const inputAlias = document.getElementById('inputAlias');
+        const inputTel = document.getElementById('inputTel');
 
-function closeEditModal() {
-    document.getElementById('editModal').style.display = 'none';
-}
-
-// Close the modal if the user clicks anywhere outside of the box
-window.onclick = function(event) {
-    let modal = document.getElementById('editModal');
-    if (event.target == modal) {
-        modal.style.display = "none";
+        if (role === 'Admin') {
+            // Hide the barber specific fields and remove requirement
+            barberFields.style.display = 'none';
+            inputAlias.required = false;
+            inputTel.required = false;
+        } else {
+            // Show fields and require them
+            barberFields.style.display = 'grid';
+            inputAlias.required = true;
+            inputTel.required = true;
+        }
     }
-}
+    
+    // Run on page load to set correct required state
+    document.addEventListener("DOMContentLoaded", toggleBarberFields);
 </script>
-
-<style>
-/* Extend standard admin styles */
-.admin-container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; }
-.admin-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(197, 160, 89, 0.3); padding-bottom: 1rem; }
-.manage-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 2rem; }
-.admin-table { width: 100%; border-collapse: collapse; background: var(--bg-card); border-radius: 8px; overflow: hidden; }
-.admin-table th, .admin-table td { padding: 1rem; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
-.admin-table th { background: rgba(0,0,0,0.2); color: var(--gold-primary); font-weight: 600; }
-.badge-domicile { background: rgba(197, 160, 89, 0.2); color: var(--gold-primary); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; }
-.badge-studio { background: rgba(255, 255, 255, 0.1); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; }
-.badge-both { background: rgba(40, 167, 69, 0.2); color: #28a745; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; }
-.form-card { background: var(--bg-card); padding: 2rem; border-radius: 8px; border: 1px solid rgba(197, 160, 89, 0.2); }
-.w-100 { width: 100%; }
-.text-muted { color: #888; }
-.btn-small { padding: 0.4rem 0.8rem; font-size: 0.85rem; cursor: pointer; transition: 0.3s; }
-
-/* Modal Styles */
-.modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; }
-.modal-content { width: 90%; max-width: 450px; position: relative; animation: slideDown 0.3s ease; }
-.close-modal { position: absolute; top: 15px; right: 20px; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; font-weight: bold; }
-.close-modal:hover { color: var(--gold-primary); }
-
-@keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-@media (max-width: 768px) { .manage-grid { grid-template-columns: 1fr; } }
-</style>
 {% endblock %}

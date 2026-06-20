@@ -599,105 +599,122 @@ def confirm_appointment(appt_id):
         
     return redirect(url_for('admin_dashboard'))
 
+# -------------------------------------------------------------------
+# PERSONNEL MANAGEMENT (SUPER ADMIN ONLY)
+# -------------------------------------------------------------------
+
 @app.route("/admin/manage", methods=["GET", "POST"])
 def admin_manage():
-    if session.get('role') not in ['SuperAdmin', 'Admin']:
-        flash("Accès refusé.", "error")
+    # STRICTLY SUPER ADMIN ONLY
+    if session.get('role') != 'SuperAdmin':
+        flash("Accès refusé. Seul le Super Administrateur peut gérer le personnel.", "error")
         return redirect(url_for('admin_dashboard'))
 
     conn = get_db_connection()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
     if request.method == "POST":
+        role = request.form.get("role")
+        email = request.form.get("email")
+        password = request.form.get("password")
+        
         alias = request.form.get("alias")
         telephone = request.form.get("telephone")
-        email = request.form.get("email")
         pref = request.form.get("deplacement_pref")
         adresse_studio = request.form.get("adresse_studio", "")
 
         try:
-            # 1. CREATE PUBLIC PROFILE AND GET ID
-            cursor.execute("""
-                INSERT INTO coiffeuses (alias, telephone, email, deplacement_pref, adresse_studio)
-                VALUES (%s, %s, %s, %s, %s) RETURNING id
-            """, (alias, telephone, email, pref, adresse_studio))
+            # Hash the manually provided password securely
+            hashed_pw = generate_password_hash(password)
             
-            new_coiffeuse_id = cursor.fetchone()['id']
+            if role == 'Admin':
+                # Create an Admin account (No public barber profile needed)
+                cursor.execute("""
+                    INSERT INTO users (email, password_hash, role)
+                    VALUES (%s, %s, 'Admin')
+                """, (email, hashed_pw))
+                conn.commit()
+                flash(f"L'Administrateur a été ajouté avec succès !", "success")
             
-            # 2. AUTOMATICALLY CREATE LOGIN ACCOUNT LINKED TO THIS ID
-            default_pw = generate_password_hash("Coiffure123!")
-            cursor.execute("""
-                INSERT INTO users (email, password_hash, role, coiffeuse_id)
-                VALUES (%s, %s, 'Agent', %s)
-            """, (email, default_pw, new_coiffeuse_id))
-            
-            conn.commit()
-            flash(f"Profil ajouté ! Ils peuvent se connecter avec l'email et le mot de passe: Coiffure123!", "success")
+            elif role == 'Agent':
+                # 1. Create the public Coiffeuse profile FIRST to get the ID
+                cursor.execute("""
+                    INSERT INTO coiffeuses (alias, telephone, email, deplacement_pref, adresse_studio)
+                    VALUES (%s, %s, %s, %s, %s) RETURNING id
+                """, (alias, telephone, email, pref, adresse_studio))
+                
+                new_coiffeuse_id = cursor.fetchone()['id']
+                
+                # 2. Automatically create their login account and link the ID
+                cursor.execute("""
+                    INSERT INTO users (email, password_hash, role, coiffeuse_id)
+                    VALUES (%s, %s, 'Agent', %s)
+                """, (email, hashed_pw, new_coiffeuse_id))
+                
+                conn.commit()
+                flash(f"La coiffeuse {alias} a été ajoutée et son accès de connexion est activé !", "success")
+
         except psycopg2.errors.UniqueViolation:
             conn.rollback()
-            flash("Erreur: Cet email ou nom d'affichage est déjà utilisé.", "error")
+            flash("Erreur : Cet email ou ce nom d'affichage existe déjà dans le système.", "error")
         except Exception as e:
             conn.rollback()
-            print(f"Error adding stylist: {e}")
+            print(f"Error adding personnel: {e}")
             flash("Erreur système lors de l'ajout.", "error")
             
         return redirect(url_for('admin_manage'))
 
     try:
-        cursor.execute("SELECT id, alias, telephone, deplacement_pref, adresse_studio, created_at FROM coiffeuses ORDER BY id;")
-        stylists = cursor.fetchall()
+        # Fetch ALL personnel (Users + Linked Coiffeuses)
+        cursor.execute("""
+            SELECT u.id as user_id, u.email, u.role, u.created_at, 
+                   c.id as stylist_id, c.alias, c.telephone, c.deplacement_pref, c.adresse_studio
+            FROM users u 
+            LEFT JOIN coiffeuses c ON u.coiffeuse_id = c.id 
+            ORDER BY u.role DESC, c.alias ASC;
+        """)
+        personnel = cursor.fetchall()
     except Exception as e:
         print(f"Fetch Error: {e}")
-        stylists = []
+        personnel = []
     finally:
         cursor.close()
         conn.close()
 
-    return render_template("admin/manage.html", stylists=stylists)
+    return render_template("admin/manage.html", personnel=personnel)
 
-@app.route("/admin/manage/edit/<int:stylist_id>", methods=["POST"])
-def edit_stylist(stylist_id):
-    if session.get('role') not in ['SuperAdmin', 'Admin']:
+@app.route("/admin/manage/delete/<int:user_id>", methods=["POST"])
+def delete_personnel(user_id):
+    if session.get('role') != 'SuperAdmin':
         flash("Accès refusé.", "error")
         return redirect(url_for('admin_dashboard'))
-
-    alias = request.form.get("alias")
-    telephone = request.form.get("telephone")
-    email = request.form.get("email")
-    pref = request.form.get("deplacement_pref")
-    adresse_studio = request.form.get("adresse_studio", "")
 
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        # Check old email to update user account if changed
-        cursor.execute("SELECT email FROM coiffeuses WHERE id = %s", (stylist_id,))
-        old_email_row = cursor.fetchone()
-        old_email = old_email_row[0] if old_email_row else None
-
-        cursor.execute("""
-            UPDATE coiffeuses 
-            SET alias = %s, telephone = %s, email = %s, deplacement_pref = %s, adresse_studio = %s
-            WHERE id = %s
-        """, (alias, telephone, email, pref, adresse_studio, stylist_id))
+        # Check if the user is a Barber (Agent)
+        cursor.execute("SELECT coiffeuse_id FROM users WHERE id = %s", (user_id,))
+        row = cursor.fetchone()
         
-        # If admin changed their email, change their login email too!
-        if old_email and old_email != email:
-            cursor.execute("UPDATE users SET email = %s WHERE coiffeuse_id = %s", (email, stylist_id))
-
+        if row and row[0]:
+            coiffeuse_id = row[0]
+            # Delete both the login and the public profile
+            cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
+            cursor.execute("DELETE FROM coiffeuses WHERE id = %s", (coiffeuse_id,))
+        else:
+            # Just delete the Admin account
+            cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
+            
         conn.commit()
-        flash("Le profil a été mis à jour avec succès !", "success")
-    except psycopg2.errors.UniqueViolation:
-        conn.rollback()
-        flash("Erreur: Cet email ou nom est déjà pris.", "error")
+        flash("Membre de l'équipe supprimé définitivement.", "success")
     except Exception as e:
         conn.rollback()
-        print(f"Update Error: {e}")
-        flash("Erreur lors de la mise à jour.", "error")
+        print(f"Delete Error: {e}")
+        flash("Erreur lors de la suppression. Des rendez-vous sont peut-être encore attachés à cette personne.", "error")
     finally:
         cursor.close()
         conn.close()
-
+        
     return redirect(url_for('admin_manage'))
 
 @app.route("/admin/schedule", methods=["GET", "POST"])
