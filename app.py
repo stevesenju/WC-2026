@@ -120,7 +120,6 @@ def get_available_stylists(service_id, variation_id, date_str):
         imgs = [img['image_url'] for img in cursor.fetchall()]
         return {"id": c_id, "alias": alias, "deplacement_pref": pref, "prix": float(prix), "images": imgs, "date_dispo": date_dispo}
 
-    # Fetch Exact Matches
     cursor.execute("""
         SELECT DISTINCT c.id, c.alias, c.deplacement_pref, cs.prix 
         FROM coiffeuses c
@@ -135,7 +134,6 @@ def get_available_stylists(service_id, variation_id, date_str):
         exact.append(build_stylist(row['id'], row['alias'], row['deplacement_pref'], row['prix']))
         exact_ids.add(row['id'])
     
-    # Fetch Close Matches
     close = []
     if len(exact) <= 1:
         cursor.execute("""
@@ -169,6 +167,17 @@ def get_times(stylist_id, date_str):
     cursor.close()
     conn.close()
     return jsonify({"times": times})
+
+@app.route("/api/service-variations/<int:service_id>")
+def get_service_variations(service_id):
+    # This powers the new Assign Skills dynamic UI!
+    conn = get_db_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    cursor.execute("SELECT id, nom FROM service_variations WHERE service_id = %s ORDER BY id;", (service_id,))
+    variations = [dict(row) for row in cursor.fetchall()]
+    cursor.close()
+    conn.close()
+    return jsonify({"variations": variations})
 
 # --- TRANSACTIONAL ROUTE ---
 @app.route("/submit-booking", methods=["POST"])
@@ -821,7 +830,9 @@ def admin_catalog():
         nom = request.form.get("nom")
         categorie_slug = request.form.get("categorie")
         description = request.form.get("description")
-        variations_str = request.form.get("variations", "")
+        
+        # Now reading the dynamic inputs
+        variations_list = request.form.getlist("variations[]")
         
         image_url = ""
         if 'image_file' in request.files:
@@ -833,21 +844,18 @@ def admin_catalog():
                 image_url = f"/{filepath}".replace("\\", "/")
 
         try:
-            # Insert the Service
             cursor.execute("""
                     INSERT INTO services (nom, description, categorie, image_url)
                     VALUES (%s, %s, %s, %s) RETURNING id
                 """, (nom, description, categorie_slug, image_url))
             service_id = cursor.fetchone()['id']
             
-            # Process and Insert Variations
-            var_list = [v.strip() for v in variations_str.split(',')] if variations_str else []
-            var_list = [v for v in var_list if v] # Remove empties
-            
-            if not var_list:
-                var_list = ["Standard"] # Fallback if none provided
+            # Clean up variations and save them
+            clean_vars = [v.strip() for v in variations_list if v.strip()]
+            if not clean_vars:
+                clean_vars = ["Standard"] # Fallback if they didn't add any
                 
-            for v in var_list:
+            for v in clean_vars:
                 cursor.execute("INSERT INTO service_variations (service_id, nom) VALUES (%s, %s)", (service_id, v))
 
             conn.commit()
@@ -863,7 +871,6 @@ def admin_catalog():
         cursor.execute("SELECT nom, slug FROM categories ORDER BY id;")
         categories = cursor.fetchall()
         
-        # Fetch Services WITH their variations grouped as a string for display
         cursor.execute("""
             SELECT s.id, s.nom, s.categorie, s.description, s.image_url, 
                    string_agg(v.nom, ', ') as variations
@@ -894,55 +901,55 @@ def admin_assign_skills():
 
     if request.method == "POST":
         coiffeuse_id = request.form.get("coiffeuse_id")
-        variation_id = request.form.get("variation_id")
-        prix = request.form.get("prix")
+        service_id = request.form.get("service_id")
 
         try:
-            # We must fetch the correct service_id for this variation
-            cursor.execute("SELECT service_id FROM service_variations WHERE id = %s", (variation_id,))
-            service_id = cursor.fetchone()['service_id']
-
-            cursor.execute("""
-                INSERT INTO coiffeuse_services (coiffeuse_id, service_id, variation_id, prix)
-                VALUES (%s, %s, %s, %s)
-                ON CONFLICT (coiffeuse_id, variation_id) 
-                DO UPDATE SET prix = EXCLUDED.prix;
-            """, (coiffeuse_id, service_id, variation_id, prix))
+            # Fetch all variations for the selected service
+            cursor.execute("SELECT id FROM service_variations WHERE service_id = %s", (service_id,))
+            variations = cursor.fetchall()
+            
+            # Loop through variations and grab the prices submitted in the dynamic form
+            for var in variations:
+                var_id = var['id']
+                prix_str = request.form.get(f"prix_{var_id}")
+                
+                if prix_str and prix_str.strip():
+                    cursor.execute("""
+                        INSERT INTO coiffeuse_services (coiffeuse_id, service_id, variation_id, prix)
+                        VALUES (%s, %s, %s, %s)
+                        ON CONFLICT (coiffeuse_id, variation_id) 
+                        DO UPDATE SET prix = EXCLUDED.prix;
+                    """, (coiffeuse_id, service_id, var_id, float(prix_str)))
+            
             conn.commit()
-            flash("Tarif mis à jour pour cette variation !", "success")
+            flash("Les tarifs de cette coiffeuse ont été mis à jour !", "success")
         except Exception as e:
             conn.rollback()
             print(f"Assign Error: {e}")
-            flash("Erreur lors de la mise à jour.", "error")
+            flash("Erreur lors de la mise à jour des prix.", "error")
             
         return redirect(url_for('admin_assign_skills'))
 
     cursor.execute("SELECT id, alias FROM coiffeuses ORDER BY alias;")
     stylists = cursor.fetchall()
     
-    # Fetch variations to populate the dropdown
-    cursor.execute("""
-        SELECT v.id, s.nom as service_nom, v.nom as variation_nom 
-        FROM service_variations v 
-        JOIN services s ON v.service_id = s.id 
-        ORDER BY s.nom, v.nom;
-    """)
-    variations = cursor.fetchall()
+    cursor.execute("SELECT id, nom FROM services ORDER BY nom;")
+    services = cursor.fetchall()
     
-    # Fetch current assignments
+    # Safe query to avoid 500 error if variation_id is NULL for old data
     cursor.execute("""
-        SELECT c.alias, s.nom as service_nom, v.nom as variation_nom, cs.prix 
+        SELECT c.alias, s.nom as service_nom, COALESCE(v.nom, 'Standard') as variation_nom, cs.prix 
         FROM coiffeuse_services cs
         JOIN coiffeuses c ON cs.coiffeuse_id = c.id
         JOIN services s ON cs.service_id = s.id
-        JOIN service_variations v ON cs.variation_id = v.id
+        LEFT JOIN service_variations v ON cs.variation_id = v.id
         ORDER BY c.alias, s.nom, v.nom;
     """)
     current_assignments = cursor.fetchall()
 
     cursor.close()
     conn.close()
-    return render_template("admin/assign.html", stylists=stylists, variations=variations, assignments=current_assignments)
+    return render_template("admin/assign.html", stylists=stylists, services=services, assignments=current_assignments)
 
 if __name__ == "__main__":
     app.run(debug=True)

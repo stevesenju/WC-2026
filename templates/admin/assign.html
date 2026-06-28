@@ -7,7 +7,7 @@
     <div class="admin-header">
         <div>
             <h2>Assignation et <span class="gold-text">Tarifs</span></h2>
-            <p style="color: #333; font-weight: 600; margin-top: 0.5rem;">Associez vos variations aux coiffeuses et définissez leurs tarifs.</p>
+            <p style="color: #333; font-weight: 600; margin-top: 0.5rem;">Définissez les prix de chaque coiffeuse selon le service et ses variations.</p>
         </div>
         <div class="admin-actions">
             <a href="{{ url_for('admin_dashboard') }}" class="btn-back">← Retour au Tableau</a>
@@ -20,9 +20,9 @@
             <h3>Attribuer un service</h3>
             <form action="/admin/assign-skills" method="POST">
                 <div class="form-group">
-                    <label>Coiffeuse</label>
+                    <label>1. Sélectionner la coiffeuse</label>
                     <select name="coiffeuse_id" class="form-control" required>
-                        <option value="" disabled selected>Sélectionner...</option>
+                        <option value="" disabled selected>Choisir une coiffeuse...</option>
                         {% for s in stylists %}
                             <option value="{{ s.id }}">{{ s.alias }}</option>
                         {% endfor %}
@@ -30,21 +30,21 @@
                 </div>
                 
                 <div class="form-group">
-                    <label>Service & Variation</label>
-                    <select name="variation_id" class="form-control" required>
-                        <option value="" disabled selected>Sélectionner...</option>
-                        {% for v in variations %}
-                            <option value="{{ v.id }}">{{ v.service_nom }} - ({{ v.variation_nom }})</option>
+                    <label>2. Sélectionner le service principal</label>
+                    <select name="service_id" id="service_id" class="form-control" required>
+                        <option value="" disabled selected>Choisir un service...</option>
+                        {% for s in services %}
+                            <option value="{{ s.id }}">{{ s.nom }}</option>
                         {% endfor %}
                     </select>
                 </div>
                 
-                <div class="form-group">
-                    <label>Prix spécifique pour ce combo ($)</label>
-                    <input type="number" step="0.01" name="prix" class="form-control" required placeholder="Ex: 120.00">
+                <!-- DYNAMIC PRICE INPUTS INJECTED HERE -->
+                <div id="dynamic-prices" style="margin-top: 1.5rem; padding: 1.5rem; background: #fdfaf5; border: 2px dashed #C5A059; border-radius: 8px; display: none;">
+                    <p style="text-align: center; color: #666; font-weight: 600;">Sélectionnez un service pour afficher ses variations.</p>
                 </div>
                 
-                <button type="submit" class="btn-submit w-100 mt-3">Enregistrer l'assignation</button>
+                <button type="submit" class="btn-submit w-100 mt-3" id="saveBtn" style="display: none;">Sauvegarder les tarifs</button>
             </form>
         </div>
         
@@ -53,23 +53,23 @@
             <h3 style="color: #111; font-weight: 800; font-size: 1.5rem; margin-bottom: 1.5rem;">Grille tarifaire par Coiffeuse</h3>
             
             <div class="scrollable-container">
-                <!-- THE MAGIC LOOP: Groups the flat data by stylist alias -->
                 {% for stylist_alias, stylist_assignments in assignments|groupby('alias') %}
                 <div class="stylist-group">
                     <h4 class="stylist-title">✂️ {{ stylist_alias }}</h4>
                     <table class="admin-table">
                         <thead>
                             <tr>
-                                <th style="width: 50%;">Service</th>
-                                <th>Variation</th>
+                                <th style="width: 70%;">Service & Variation</th>
                                 <th>Prix Fixé</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for a in stylist_assignments %}
                             <tr>
-                                <td style="font-weight: 600; color: #333;">{{ a.service_nom }}</td>
-                                <td style="font-weight: 500; color: #555;">{{ a.variation_nom }}</td>
+                                <td>
+                                    <strong style="color: #111;">{{ a.service_nom }}</strong> 
+                                    <span style="color: #666; font-size: 0.9rem;">— {{ a.variation_nom }}</span>
+                                </td>
                                 <td><span class="price-badge">{{ a.prix }}$</span></td>
                             </tr>
                             {% endfor %}
@@ -86,6 +86,44 @@
         </div>
     </div>
 </div>
+
+<script>
+    document.getElementById('service_id').addEventListener('change', function() {
+        const serviceId = this.value;
+        const container = document.getElementById('dynamic-prices');
+        const saveBtn = document.getElementById('saveBtn');
+        
+        container.innerHTML = '<p style="text-align:center; font-weight:bold;">Chargement des variations...</p>';
+        container.style.display = 'block';
+        saveBtn.style.display = 'none';
+        
+        fetch(`/api/service-variations/${serviceId}`)
+            .then(res => res.json())
+            .then(data => {
+                if(data.variations.length === 0) {
+                    container.innerHTML = '<p style="color:#ff3333; text-align:center; font-weight:bold;">Erreur: Aucune variation pour ce service.</p>';
+                    return;
+                }
+                
+                let html = '<h4 style="margin-top:0; margin-bottom:1rem; color:#111; font-weight:800;">3. Tarifs pour chaque variation :</h4>';
+                
+                data.variations.forEach(v => {
+                    html += `
+                        <div class="form-group" style="margin-bottom: 1rem; background: #fff; padding: 1rem; border-radius: 6px; border: 1px solid #eaddcf;">
+                            <label style="color:#444; font-weight: 700; margin-bottom: 0.3rem;">Variation : <span style="color: #C5A059;">${v.nom}</span></label>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="font-weight: 800; color: #111;">$</span>
+                                <input type="number" step="0.01" name="prix_${v.id}" class="form-control" required placeholder="Ex: 120.00" style="margin: 0;">
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = html;
+                saveBtn.style.display = 'block';
+            });
+    });
+</script>
 
 <style>
 /* Modern & High-Contrast Styles */
@@ -105,7 +143,7 @@
 
 .form-group { margin-bottom: 1.2rem; }
 .form-group label { display: block; font-weight: 800; margin-bottom: 0.5rem; color: #111; font-size: 0.95rem; }
-.form-control { width: 100%; padding: 0.8rem; border: 2px solid #ccc; border-radius: 6px; font-weight: 600; color: #111; font-size: 1rem; transition: 0.3s; background: #fff; }
+.form-control { width: 100%; padding: 0.8rem; border: 2px solid #ccc; border-radius: 6px; font-weight: 600; color: #111; font-size: 1rem; transition: 0.3s; background: #fff; box-sizing: border-box; }
 .form-control:focus { border-color: #C5A059; outline: none; }
 
 .btn-submit { background: #C5A059; color: white; padding: 1rem; font-weight: 800; border: none; border-radius: 6px; font-size: 1.1rem; cursor: pointer; transition: 0.3s; }
