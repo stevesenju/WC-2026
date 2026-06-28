@@ -30,13 +30,32 @@
         .navbar { display: flex; justify-content: center; padding: 1rem; }
         .nav-container { width: 100%; display: flex; justify-content: center; }
         .content-wrapper { padding: 0 1rem; }
+
+        /* Nouveaux styles pour le Logo */
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px; /* Espace entre l'image et le texte */
+            text-decoration: none;
+        }
+        .logo-image {
+            height: 45px; /* Ajustez la hauteur de votre logo ici */
+            width: auto;
+            border-radius: 4px; /* Optionnel: arrondit légèrement les coins de l'image */
+        }
     </style>
 </head>
 <body>
     <nav class="navbar">
         <div class="nav-container">
             <a href="/" class="nav-logo">
-                <span class="logo-text">COIFF'</span><span class="logo-accent">CONNECT</span>
+                <!-- L'image de votre logo (assurez-vous de placer 'logo.png' ou 'logo.jpg' dans votre dossier static/images/) -->
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo Coiff'Connect" class="logo-image" onerror="this.style.display='none'">
+                
+                <!-- Le texte du logo à côté de l'image -->
+                <div>
+                    <span class="logo-text">COIFF'</span><span class="logo-accent">CONNECT</span>
+                </div>
             </a>
             <!-- Links removed from top to prevent mobile layout breaking -->
         </div>
