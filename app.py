@@ -32,7 +32,7 @@ def get_local_today():
 
 # --- DATABASE & EMAIL ---
 def get_db_connection():
-    database_url = "postgresql://postgres.vglivtbmjtxgsfswxvpd:Kar1ee$9rey541@aws-0-us-east-1.pooler.supabase.com:6543/postgres"
+    database_url = "postgresql://postgres.vglivtbmjtxgsfswxvpd:Kar1ee$9rey541@aws-1-ca-central-1.pooler.supabase.com:6543/postgres"
     return psycopg2.connect(database_url)
 
 def send_automated_email(to_email, subject, body_html, cc_admin=False):
