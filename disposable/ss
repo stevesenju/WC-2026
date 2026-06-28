@@ -1,3 +1,265 @@
+catalog:
+
+{% extends 'base.html' %}
+
+{% block title %}Catalogue des Services | Coiff'Connect{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <div class="admin-header">
+        <div>
+            <h2>Gestion du <span class="gold-text">Catalogue</span></h2>
+            <p>Ajoutez les styles et coupes visibles par les clients sur le site.</p>
+        </div>
+        <div class="admin-actions">
+            <a href="/admin/dashboard" class="btn-outline">← Retour au Tableau</a>
+        </div>
+    </div>
+
+    <div class="manage-grid mt-4">
+        <div class="add-section">
+            <div class="form-card">
+                <h3>Ajouter un Nouveau Style</h3>
+                <form action="/admin/catalog" method="POST" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label>Nom de la coupe/style</label>
+                        <input type="text" name="nom" class="form-input" required placeholder="Ex: Tresses Africaines (Knotless)">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Catégorie</label>
+                        <select name="categorie" class="form-input" required>
+                            <option value="" disabled selected>Choisir une catégorie...</option>
+                            {% for cat in categories %}
+                                <option value="{{ cat.slug }}">{{ cat.nom }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Photo du Style</label>
+                        <input type="file" name="image_file" class="form-input" accept="image/*">
+                        <small class="text-muted">Formats acceptés : JPG, PNG, WEBP.</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea name="description" class="form-input" rows="3" required placeholder="Description courte du style pour aider le client à choisir..."></textarea>
+                    </div>
+
+                    <button type="submit" class="btn-gold w-100 mt-2">Publier le Style</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="roster-section">
+            <h3>Styles Actuels dans la Base</h3>
+            <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+                <table class="admin-table">
+                    <thead style="position: sticky; top: 0; background: var(--bg-card); box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+                        <tr>
+                            <th>Image</th>
+                            <th>Nom & Catégorie</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for service in services %}
+                        <tr>
+                            <td style="width: 80px;">
+                                {% if service.image_url %}
+                                    <img src="{{ service.image_url }}" alt="{{ service.nom }}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px; border: 1px solid rgba(197, 160, 89, 0.3);">
+                                {% else %}
+                                    <div style="width: 60px; height: 60px; background: rgba(255,255,255,0.05); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; color: #666;">Aucune</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <strong>{{ service.nom }}</strong><br>
+                                <span class="badge-both" style="font-size: 0.7rem; display: inline-block; margin-top: 4px;">{{ service.categorie|upper }}</span>
+                            </td>
+                            <td><small class="text-muted" style="display: block; max-width: 250px;">{{ service.description }}</small></td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="3">Aucun service n'est encore enregistré dans le catalogue.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Core Admin Styles */
+.admin-container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; }
+.admin-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(197, 160, 89, 0.3); padding-bottom: 1rem; }
+.manage-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 2rem; }
+.admin-table { width: 100%; border-collapse: collapse; background: var(--bg-card); border-radius: 8px; }
+.admin-table th, .admin-table td { padding: 1rem; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.admin-table th { color: var(--gold-primary); font-weight: 600; }
+.badge-both { background: rgba(197, 160, 89, 0.1); color: var(--gold-primary); padding: 0.2rem 0.5rem; border-radius: 4px; border: 1px solid rgba(197, 160, 89, 0.3); }
+.form-card { background: var(--bg-card); padding: 2rem; border-radius: 8px; border: 1px solid rgba(197, 160, 89, 0.2); }
+.w-100 { width: 100%; }
+.text-muted { color: #aaa; }
+textarea.form-input { resize: vertical; font-family: inherit; }
+
+/* Upload Input Styling */
+input[type="file"] { padding: 0.5rem; background: rgba(0,0,0,0.2); border: 1px dashed rgba(197, 160, 89, 0.5); border-radius: 4px; color: var(--text-light); width: 100%; box-sizing: border-box; }
+input[type="file"]::-webkit-file-upload-button { background: var(--gold-primary); color: var(--bg-dark); border: none; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; margin-right: 1rem; font-weight: bold; }
+
+/* Scrollbar styling */
+.table-responsive::-webkit-scrollbar { width: 8px; }
+.table-responsive::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.05); border-radius: 4px; }
+.table-responsive::-webkit-scrollbar-thumb { background: rgba(197, 160, 89, 0.5); border-radius: 4px; }
+.table-responsive::-webkit-scrollbar-thumb:hover { background: rgba(197, 160, 89, 0.8); }
+
+@media (max-width: 768px) { .manage-grid { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+
+
+
+assign
+{% extends 'base.html' %}
+
+{% block title %}Gestion des Tarifs | Coiff'Connect{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <div class="admin-header">
+        <div>
+            <h2>Assignation et <span class="gold-text">Tarifs</span></h2>
+            <p style="color: #333; font-weight: 600; margin-top: 0.5rem;">Associez vos services aux coiffeuses et définissez leurs tarifs.</p>
+        </div>
+        <div class="admin-actions">
+            <a href="{{ url_for('admin_dashboard') }}" class="btn-back">← Retour au Tableau</a>
+        </div>
+    </div>
+
+    <div class="manage-grid mt-4">
+        <!-- FORM SECTION -->
+        <div class="form-card">
+            <h3>Attribuer un service</h3>
+            <form action="/admin/assign-skills" method="POST">
+                <div class="form-group">
+                    <label>Coiffeuse</label>
+                    <select name="coiffeuse_id" class="form-control" required>
+                        <option value="" disabled selected>Sélectionner...</option>
+                        {% for s in stylists %}
+                            <option value="{{ s.id }}">{{ s.alias }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Service</label>
+                    <select name="service_id" class="form-control" required>
+                        <option value="" disabled selected>Sélectionner...</option>
+                        {% for s in services %}
+                            <option value="{{ s.id }}">{{ s.nom }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Prix pour ce service ($)</label>
+                    <input type="number" step="0.01" name="prix" class="form-control" required placeholder="Ex: 120.00">
+                </div>
+                
+                <button type="submit" class="btn-submit w-100 mt-3">Enregistrer l'assignation</button>
+            </form>
+        </div>
+        
+        <!-- DISPLAY SECTION (GROUPED BY STYLIST) -->
+        <div class="roster-section">
+            <h3 style="color: #111; font-weight: 800; font-size: 1.5rem; margin-bottom: 1.5rem;">Grille tarifaire par Coiffeuse</h3>
+            
+            <div class="scrollable-container">
+                <!-- THE MAGIC LOOP: Groups the flat data by stylist alias -->
+                {% for stylist_alias, stylist_assignments in assignments|groupby('alias') %}
+                <div class="stylist-group">
+                    <h4 class="stylist-title">✂️ {{ stylist_alias }}</h4>
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 70%;">Service</th>
+                                <th>Prix Fixé</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for a in stylist_assignments %}
+                            <tr>
+                                <td style="font-weight: 600; color: #333;">{{ a.nom }}</td>
+                                <td><span class="price-badge">{{ a.prix }}$</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div style="padding: 2rem; text-align: center; background: #fdfaf5; border: 2px dashed #ddd; border-radius: 8px;">
+                    <p style="color: #666; font-weight: bold; margin: 0;">Aucune assignation pour le moment.</p>
+                </div>
+                {% endfor %}
+            </div>
+            
+        </div>
+    </div>
+</div>
+
+<style>
+/* Modern & High-Contrast Styles */
+.admin-container { max-width: 1100px; margin: 2rem auto; padding: 0 1rem; }
+.admin-header { border-bottom: 3px solid #C5A059; margin-bottom: 2rem; padding-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+.admin-header h2 { font-family: 'Playfair Display', serif; color: #111; margin: 0; font-size: 2.2rem; font-weight: 700; }
+.gold-text { color: #C5A059; }
+
+.btn-back { background: #111; color: white; text-decoration: none; padding: 0.6rem 1.2rem; border-radius: 6px; font-weight: 700; font-size: 1rem; border: 2px solid #111; transition: 0.2s; }
+.btn-back:hover { background: #333; color: white; }
+
+.manage-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 2.5rem; }
+
+/* Form Card */
+.form-card { background: #fff; padding: 2.5rem; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 2px solid #eee; height: fit-content; }
+.form-card h3 { margin-top: 0; color: #111; font-weight: 800; font-size: 1.4rem; margin-bottom: 1.5rem; }
+
+.form-group { margin-bottom: 1.2rem; }
+.form-group label { display: block; font-weight: 800; margin-bottom: 0.5rem; color: #111; font-size: 0.95rem; }
+.form-control { width: 100%; padding: 0.8rem; border: 2px solid #ccc; border-radius: 6px; font-weight: 600; color: #111; font-size: 1rem; transition: 0.3s; background: #fff; }
+.form-control:focus { border-color: #C5A059; outline: none; }
+
+.btn-submit { background: #C5A059; color: white; padding: 1rem; font-weight: 800; border: none; border-radius: 6px; font-size: 1.1rem; cursor: pointer; transition: 0.3s; }
+.btn-submit:hover { background: #b08d4b; }
+.w-100 { width: 100%; }
+
+/* Grouped Tables UI */
+.scrollable-container { max-height: 700px; overflow-y: auto; padding-right: 10px; }
+.scrollable-container::-webkit-scrollbar { width: 8px; }
+.scrollable-container::-webkit-scrollbar-thumb { background: #C5A059; border-radius: 10px; }
+
+.stylist-group { margin-bottom: 2rem; background: #fff; border: 2px solid #ddd; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
+.stylist-title { background: #fdfaf5; margin: 0; padding: 1rem 1.5rem; color: #111; font-family: 'Playfair Display', serif; font-size: 1.3rem; border-bottom: 2px solid #eaddcf; font-weight: 700; }
+
+.admin-table { width: 100%; border-collapse: collapse; background: #fff; }
+.admin-table th, .admin-table td { padding: 1rem 1.5rem; text-align: left; border-bottom: 1px solid #eee; }
+.admin-table th { color: #111; font-weight: 800; font-size: 0.95rem; background: #fafafa; }
+.admin-table tr:last-child td { border-bottom: none; }
+
+.price-badge { display: inline-block; background: #e8f5e9; color: #1b5e20; border: 1px solid #c8e6c9; padding: 0.3rem 0.8rem; border-radius: 20px; font-weight: 800; font-size: 0.95rem; }
+
+@media (max-width: 768px) { 
+    .manage-grid { grid-template-columns: 1fr; } 
+    .admin-header { flex-direction: column; align-items: flex-start; }
+}
+</style>
+{% endblock %}
+
+
+
+booking
+
 {% extends 'base.html' %}
 
 {% block title %}Réserver - Coiff'Connect{% endblock %}
@@ -53,23 +315,9 @@
         <input type="hidden" name="stylist_id" id="stylist_id" required>
         <input type="hidden" name="selected_time" id="selected_time" required>
 
-        <!-- STEP 1: VARIATION -->
+        <!-- STEP 1: DATE & STYLIST SELECTION -->
         <div class="form-section">
-            <h3>1. Personnalisation de la coupe</h3>
-            <div class="form-group">
-                <label>Veuillez choisir la longueur / le volume</label>
-                <select name="variation_id" id="variation_id" class="form-control" required>
-                    <option value="" disabled selected>Sélectionnez une option</option>
-                    {% for v in variations %}
-                        <option value="{{ v.id }}">{{ v.nom }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-        </div>
-
-        <!-- STEP 2: DATE & STYLIST SELECTION -->
-        <div class="form-section">
-            <h3>2. Date & Disponibilités</h3>
+            <h3>1. Date & Disponibilités</h3>
             <div class="form-group">
                 <label>Choisissez une date</label>
                 <input type="date" name="selected_date" id="selected_date" class="form-control" required>
@@ -102,9 +350,9 @@
             </div>
         </div>
 
-        <!-- STEP 3: LOCATION -->
+        <!-- STEP 2: LOCATION -->
         <div class="form-section" id="location-section" style="display: none;">
-            <h3>3. Lieu du Rendez-vous</h3>
+            <h3>2. Lieu du Rendez-vous</h3>
             <div class="form-group">
                 <label>Où souhaitez-vous être coiffé(e) ?</label>
                 <select name="lieu_service" id="lieu_service" class="form-control" required>
@@ -130,9 +378,9 @@
             </div>
         </div>
 
-        <!-- STEP 4: PERSONAL INFO -->
-        <div class="form-section" id="personal-info-section" style="display: none;">
-            <h3>4. Vos Informations Personnelles</h3>
+        <!-- STEP 3: PERSONAL INFO -->
+        <div class="form-section" id="personal-info-section">
+            <h3>3. Vos Informations Personnelles</h3>
             <div class="form-group">
                 <label>Nom complet</label>
                 <input type="text" name="client_nom" class="form-control" required>
@@ -147,15 +395,13 @@
             </div>
         </div>
 
-        <button type="submit" class="btn-submit" id="submitBtn" style="display: none;">Confirmer la Réservation</button>
+        <button type="submit" class="btn-submit" id="submitBtn">Confirmer la Réservation</button>
     </form>
 </div>
 
 <script>
     const serviceId = "{{ service.id }}";
-    const variationInput = document.getElementById('variation_id');
     const dateInput = document.getElementById('selected_date');
-    
     const stylistContainer = document.getElementById('stylist-container');
     const exactStylistGrid = document.getElementById('exact_stylist_grid');
     const closeMatchesContainer = document.getElementById('close-matches-container');
@@ -167,25 +413,19 @@
     const hiddenStylistId = document.getElementById('stylist_id');
     const hiddenTime = document.getElementById('selected_time');
 
+    // Transport Logic Elements
     const locationSection = document.getElementById('location-section');
     const lieuService = document.getElementById('lieu_service');
     const transportQuestion = document.getElementById('transport-question');
     const adresseGroup = document.getElementById('adresse-group');
     const transportMessage = document.getElementById('transport-message');
-    
-    const personalInfoSection = document.getElementById('personal-info-section');
-    const submitBtn = document.getElementById('submitBtn');
 
-    // 1. WATCH BOTH VARIATION AND DATE
-    variationInput.addEventListener('change', fetchStylists);
+    // 1. DATE SELECTION
     dateInput.addEventListener('change', fetchStylists);
 
     function fetchStylists() {
-        const varId = variationInput.value;
         const dateStr = dateInput.value;
-        
-        // Only fetch if both fields are filled!
-        if (!varId || !dateStr) return;
+        if (!dateStr) return;
 
         // Reset the UI
         exactStylistGrid.innerHTML = '<p style="color: #333; font-weight: 700;">Recherche en cours...</p>';
@@ -194,19 +434,17 @@
         closeMatchesContainer.style.display = 'none';
         timeContainer.style.display = 'none';
         locationSection.style.display = 'none';
-        personalInfoSection.style.display = 'none';
-        submitBtn.style.display = 'none';
         hiddenStylistId.value = '';
         hiddenTime.value = '';
 
-        fetch(`/api/available-stylists/${serviceId}/${varId}/${dateStr}`)
+        fetch(`/api/available-stylists/${serviceId}/${dateStr}`)
             .then(res => res.json())
             .then(data => {
                 exactStylistGrid.innerHTML = '';
                 
                 // If completely empty
                 if (data.exact_matches.length === 0 && data.close_matches.length === 0) {
-                    exactStylistGrid.innerHTML = '<p style="color: #ff3333; font-weight: 800;">Aucune coiffeuse n\'offre cette option autour de cette date.</p>';
+                    exactStylistGrid.innerHTML = '<p style="color: #ff3333; font-weight: 800;">Aucune coiffeuse disponible autour de cette date.</p>';
                     return;
                 }
 
@@ -268,9 +506,6 @@
     function fetchTimes(stylistId, dateStr) {
         timeGrid.innerHTML = '<p style="font-weight: 700; color: #333;">Chargement des heures...</p>';
         timeContainer.style.display = 'block';
-        locationSection.style.display = 'none';
-        personalInfoSection.style.display = 'none';
-        submitBtn.style.display = 'none';
 
         fetch(`/api/times/${stylistId}/${dateStr}`)
             .then(res => res.json())
@@ -304,9 +539,6 @@
         adresseGroup.style.display = 'none';
         transportMessage.style.display = 'none';
         document.getElementById('client_adresse').required = false;
-        
-        personalInfoSection.style.display = 'none';
-        submitBtn.style.display = 'none';
     }
 
     lieuService.addEventListener('change', function() {
@@ -324,23 +556,18 @@
             document.getElementById('client_adresse').required = true;
             transportMessage.innerHTML = "⚠️ <strong>Frais de déplacement :</strong> Un supplément de 10$ sera ajouté au total pour le déplacement de la coiffeuse à votre domicile. <em>Il est strictement interdit d'aller chercher la coiffeuse vous-même.</em>";
         }
-
-        // Show personal info and submit button!
-        personalInfoSection.style.display = 'block';
-        submitBtn.style.display = 'block';
-        
-        // Smooth scroll down to the new section
-        personalInfoSection.scrollIntoView({ behavior: 'smooth' });
     });
 
     // 5. DOUBLE CLICK PROTECTION
     document.getElementById('bookingForm').addEventListener('submit', function(e) {
-        if (!hiddenStylistId.value || !hiddenTime.value || !variationInput.value) {
+        // Double check custom validation
+        if (!hiddenStylistId.value || !hiddenTime.value) {
             e.preventDefault();
-            alert("Veuillez remplir toutes les étapes (Variation, Coiffeuse, Heure).");
+            alert("Veuillez sélectionner une coiffeuse et une heure.");
             return;
         }
         
+        // Disable the button to prevent duplicate submissions
         const btn = document.getElementById('submitBtn');
         btn.disabled = true;
         btn.innerText = "Traitement de votre réservation en cours...";
@@ -351,3 +578,4 @@
     dateInput.setAttribute('min', today);
 </script>
 {% endblock %}
+

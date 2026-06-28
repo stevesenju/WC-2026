@@ -45,6 +45,13 @@
                         <textarea name="description" class="form-input" rows="3" required placeholder="Description courte du style pour aider le client à choisir..."></textarea>
                     </div>
 
+                    <!-- NEW FIELD: VARIATIONS -->
+                    <div class="form-group">
+                        <label>Variations (Longueurs, Volumes...)</label>
+                        <input type="text" name="variations" class="form-input" placeholder="Ex: Courtes, Moyennes, Longues">
+                        <p style="font-size: 0.85rem; color: #666; margin-top: 4px; font-weight: 500;">Séparez les options par des virgules. Si le prix est fixe, laissez vide (cela créera une variation "Standard").</p>
+                    </div>
+
                     <button type="submit" class="btn-gold w-100 mt-2">Publier le Style</button>
                 </form>
             </div>
@@ -58,7 +65,7 @@
                         <tr>
                             <th>Image</th>
                             <th>Nom & Catégorie</th>
-                            <th>Description</th>
+                            <th>Variations générées</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -75,7 +82,7 @@
                                 <strong>{{ service.nom }}</strong><br>
                                 <span class="badge-both" style="font-size: 0.7rem; display: inline-block; margin-top: 4px;">{{ service.categorie|upper }}</span>
                             </td>
-                            <td><small class="text-muted" style="display: block; max-width: 250px;">{{ service.description }}</small></td>
+                            <td><small class="text-muted" style="display: block; max-width: 250px;">{{ service.variations }}</small></td>
                         </tr>
                         {% else %}
                         <tr>

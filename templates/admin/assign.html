@@ -7,7 +7,7 @@
     <div class="admin-header">
         <div>
             <h2>Assignation et <span class="gold-text">Tarifs</span></h2>
-            <p style="color: #333; font-weight: 600; margin-top: 0.5rem;">Associez vos services aux coiffeuses et définissez leurs tarifs.</p>
+            <p style="color: #333; font-weight: 600; margin-top: 0.5rem;">Associez vos variations aux coiffeuses et définissez leurs tarifs.</p>
         </div>
         <div class="admin-actions">
             <a href="{{ url_for('admin_dashboard') }}" class="btn-back">← Retour au Tableau</a>
@@ -30,17 +30,17 @@
                 </div>
                 
                 <div class="form-group">
-                    <label>Service</label>
-                    <select name="service_id" class="form-control" required>
+                    <label>Service & Variation</label>
+                    <select name="variation_id" class="form-control" required>
                         <option value="" disabled selected>Sélectionner...</option>
-                        {% for s in services %}
-                            <option value="{{ s.id }}">{{ s.nom }}</option>
+                        {% for v in variations %}
+                            <option value="{{ v.id }}">{{ v.service_nom }} - ({{ v.variation_nom }})</option>
                         {% endfor %}
                     </select>
                 </div>
                 
                 <div class="form-group">
-                    <label>Prix pour ce service ($)</label>
+                    <label>Prix spécifique pour ce combo ($)</label>
                     <input type="number" step="0.01" name="prix" class="form-control" required placeholder="Ex: 120.00">
                 </div>
                 
@@ -60,14 +60,16 @@
                     <table class="admin-table">
                         <thead>
                             <tr>
-                                <th style="width: 70%;">Service</th>
+                                <th style="width: 50%;">Service</th>
+                                <th>Variation</th>
                                 <th>Prix Fixé</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for a in stylist_assignments %}
                             <tr>
-                                <td style="font-weight: 600; color: #333;">{{ a.nom }}</td>
+                                <td style="font-weight: 600; color: #333;">{{ a.service_nom }}</td>
+                                <td style="font-weight: 500; color: #555;">{{ a.variation_nom }}</td>
                                 <td><span class="price-badge">{{ a.prix }}$</span></td>
                             </tr>
                             {% endfor %}

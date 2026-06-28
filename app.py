@@ -25,11 +25,9 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # --- TIMEZONE HELPERS ---
 def get_local_now():
-    """Returns the exact current date and time in Quebec (EST/EDT)"""
     return datetime.now(pytz.timezone('America/Toronto'))
 
 def get_local_today():
-    """Returns exactly today's date in Quebec"""
     return get_local_now().date()
 
 # --- DATABASE & EMAIL ---
@@ -54,20 +52,17 @@ def send_automated_email(to_email, subject, body_html, cc_admin=False):
     msg.attach(MIMEText(body_html, 'html'))
     
     try:
-        print("Attempting to connect to SMTP server...")
         server = smtplib.SMTP(os.getenv("SMTP_HOST", "smtp.gmail.com"), int(os.getenv("SMTP_PORT", 587)), timeout=5)
         server.starttls()
         server.login(sender_email, sender_password)
         server.sendmail(sender_email, receivers, msg.as_string())
         server.quit()
-        print("Email sent successfully!")
         return True
     except Exception as e:
         print(f"CRITICAL EMAIL ERROR (Ignored to prevent crash): {e}")
         return False
 
 # --- PUBLIC ROUTES ---
-
 @app.route("/")
 def home():
     conn = get_db_connection()
@@ -97,10 +92,14 @@ def booking(service_id):
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     cursor.execute("SELECT id, nom, description, image_url FROM services WHERE id = %s;", (service_id,))
     service = dict(cursor.fetchone()) if cursor.rowcount > 0 else None
+    
+    cursor.execute("SELECT id, nom FROM service_variations WHERE service_id = %s ORDER BY id;", (service_id,))
+    variations = [dict(row) for row in cursor.fetchall()]
+    
     cursor.close()
     conn.close()
     if not service: return "Service non trouvé", 404
-    return render_template("booking.html", service=service)
+    return render_template("booking.html", service=service, variations=variations)
 
 @app.route("/politiques-securite")
 def politiques_securite():
@@ -111,9 +110,8 @@ def nous_joindre():
     return render_template("nous-joindre.html")
 
 # --- API ROUTES ---
-
-@app.route("/api/available-stylists/<int:service_id>/<date_str>")
-def get_available_stylists(service_id, date_str):
+@app.route("/api/available-stylists/<int:service_id>/<int:variation_id>/<date_str>")
+def get_available_stylists(service_id, variation_id, date_str):
     conn = get_db_connection()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     
@@ -128,8 +126,8 @@ def get_available_stylists(service_id, date_str):
         FROM coiffeuses c
         JOIN coiffeuse_services cs ON c.id = cs.coiffeuse_id
         JOIN horaires h ON c.id = h.coiffeuse_id
-        WHERE cs.service_id = %s AND h.date_jour = %s AND h.statut = 'Libre';
-    """, (service_id, date_str))
+        WHERE cs.variation_id = %s AND h.date_jour = %s AND h.statut = 'Libre';
+    """, (variation_id, date_str))
     
     exact = []
     exact_ids = set()
@@ -137,7 +135,7 @@ def get_available_stylists(service_id, date_str):
         exact.append(build_stylist(row['id'], row['alias'], row['deplacement_pref'], row['prix']))
         exact_ids.add(row['id'])
     
-    # Fetch Close Matches (Filtered to prevent duplicates!)
+    # Fetch Close Matches
     close = []
     if len(exact) <= 1:
         cursor.execute("""
@@ -145,12 +143,12 @@ def get_available_stylists(service_id, date_str):
             FROM coiffeuses c
             JOIN coiffeuse_services cs ON c.id = cs.coiffeuse_id
             JOIN horaires h ON c.id = h.coiffeuse_id
-            WHERE cs.service_id = %s 
+            WHERE cs.variation_id = %s 
               AND h.date_jour BETWEEN %s::date - INTERVAL '3 days' AND %s::date + INTERVAL '3 days'
               AND h.date_jour != %s
               AND h.statut = 'Libre'
             ORDER BY h.date_jour ASC;
-        """, (service_id, date_str, date_str, date_str))
+        """, (variation_id, date_str, date_str, date_str))
         
         seen_close_ids = set()
         for row in cursor.fetchall():
@@ -173,7 +171,6 @@ def get_times(stylist_id, date_str):
     return jsonify({"times": times})
 
 # --- TRANSACTIONAL ROUTE ---
-
 @app.route("/submit-booking", methods=["POST"])
 def submit_booking():
     client_nom = request.form.get("client_nom")
@@ -181,10 +178,11 @@ def submit_booking():
     client_email = request.form.get("client_email")
     client_adresse = request.form.get("client_adresse", "")
     
-    lieu_service = request.form.get("lieu_service") # 'studio' or 'domicile'
-    besoin_transport = request.form.get("besoin_transport") # 'oui' or 'non'
+    lieu_service = request.form.get("lieu_service")
+    besoin_transport = request.form.get("besoin_transport")
     
     service_id = request.form.get("service_id")
+    variation_id = request.form.get("variation_id")
     stylist_id = request.form.get("stylist_id")
     selected_date = request.form.get("selected_date")
     selected_time = request.form.get("selected_time")
@@ -194,7 +192,7 @@ def submit_booking():
     conn = get_db_connection()
     cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
     try:
-        cursor.execute("SELECT prix FROM coiffeuse_services WHERE coiffeuse_id = %s AND service_id = %s", (stylist_id, service_id))
+        cursor.execute("SELECT prix FROM coiffeuse_services WHERE coiffeuse_id = %s AND variation_id = %s", (stylist_id, variation_id))
         prix_base = float(cursor.fetchone()['prix'])
 
         frais_transport = 0.0
@@ -223,11 +221,11 @@ def submit_booking():
         cursor.execute("""
             INSERT INTO rendezvous (
                 client_nom, client_email, client_telephone, client_adresse, 
-                coiffeuse_id, service_id, horaire_id, transport_req, prix_total, statut, code_interac
+                coiffeuse_id, service_id, variation_id, horaire_id, transport_req, prix_total, statut, code_interac
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'En_Attente', %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'En_Attente', %s)
             RETURNING id;
-        """, (client_nom, client_email, client_telephone, client_adresse, stylist_id, service_id, horaire_id, transport_req, float(prix_total), code_interac))
+        """, (client_nom, client_email, client_telephone, client_adresse, stylist_id, service_id, variation_id, horaire_id, transport_req, float(prix_total), code_interac))
         
         booking_id = cursor.fetchone()['id']
 
@@ -316,7 +314,6 @@ def admin_logout():
     return redirect(url_for('admin_login'))
 
 # --- STYLIST ROUTES ---
-
 @app.route("/stylist/dashboard")
 def stylist_dashboard():
     if 'user_id' not in session or session.get('role') != 'Agent':
@@ -334,10 +331,11 @@ def stylist_dashboard():
 
         cursor.execute("""
             SELECT r.id, r.client_nom, r.client_email, r.client_telephone, r.transport_req, r.client_adresse, r.prix_total, r.statut, r.code_interac,
-                   h.date_jour, h.heure_debut, s.nom as service_name
+                   h.date_jour, h.heure_debut, s.nom as service_name, v.nom as variation_nom
             FROM rendezvous r
             JOIN horaires h ON r.horaire_id = h.id
             JOIN services s ON r.service_id = s.id
+            LEFT JOIN service_variations v ON r.variation_id = v.id
             WHERE r.coiffeuse_id = %s AND r.statut != 'En_Attente'
             ORDER BY h.date_jour ASC, h.heure_debut ASC;
         """, (coiffeuse_id,))
@@ -479,6 +477,7 @@ def stylist_delete_slot(slot_id):
         
     return redirect(url_for('stylist_schedule'))
 
+# --- ADMIN ROUTES ---
 @app.route("/admin/dashboard")
 def admin_dashboard():
     if 'user_id' not in session or session.get('role') not in ['SuperAdmin', 'Admin']:
@@ -492,11 +491,12 @@ def admin_dashboard():
     try:
         cursor.execute("""
             SELECT r.id, r.client_nom, r.client_telephone, r.transport_req, r.client_adresse, r.prix_total, r.statut, r.code_interac,
-                   h.date_jour, h.heure_debut, c.alias as stylist_name, s.nom as service_name
+                   h.date_jour, h.heure_debut, c.alias as stylist_name, s.nom as service_name, v.nom as variation_nom
             FROM rendezvous r
             JOIN horaires h ON r.horaire_id = h.id
             JOIN coiffeuses c ON r.coiffeuse_id = c.id
             JOIN services s ON r.service_id = s.id
+            LEFT JOIN service_variations v ON r.variation_id = v.id
             ORDER BY h.date_jour ASC, h.heure_debut ASC;
         """)
         appointments = cursor.fetchall()
@@ -599,13 +599,8 @@ def confirm_appointment(appt_id):
         
     return redirect(url_for('admin_dashboard'))
 
-# -------------------------------------------------------------------
-# PERSONNEL MANAGEMENT (SUPER ADMIN ONLY)
-# -------------------------------------------------------------------
-
 @app.route("/admin/manage", methods=["GET", "POST"])
 def admin_manage():
-    # STRICTLY SUPER ADMIN ONLY
     if session.get('role') != 'SuperAdmin':
         flash("Accès refusé. Seul le Super Administrateur peut gérer le personnel.", "error")
         return redirect(url_for('admin_dashboard'))
@@ -624,11 +619,9 @@ def admin_manage():
         adresse_studio = request.form.get("adresse_studio", "")
 
         try:
-            # Hash the manually provided password securely
             hashed_pw = generate_password_hash(password)
             
             if role == 'Admin':
-                # Create an Admin account (No public barber profile needed)
                 cursor.execute("""
                     INSERT INTO users (email, password_hash, role)
                     VALUES (%s, %s, 'Admin')
@@ -637,7 +630,6 @@ def admin_manage():
                 flash(f"L'Administrateur a été ajouté avec succès !", "success")
             
             elif role == 'Agent':
-                # 1. Create the public Coiffeuse profile FIRST to get the ID
                 cursor.execute("""
                     INSERT INTO coiffeuses (alias, telephone, email, deplacement_pref, adresse_studio)
                     VALUES (%s, %s, %s, %s, %s) RETURNING id
@@ -645,7 +637,6 @@ def admin_manage():
                 
                 new_coiffeuse_id = cursor.fetchone()['id']
                 
-                # 2. Automatically create their login account and link the ID
                 cursor.execute("""
                     INSERT INTO users (email, password_hash, role, coiffeuse_id)
                     VALUES (%s, %s, 'Agent', %s)
@@ -665,7 +656,6 @@ def admin_manage():
         return redirect(url_for('admin_manage'))
 
     try:
-        # Fetch ALL personnel (Users + Linked Coiffeuses)
         cursor.execute("""
             SELECT u.id as user_id, u.email, u.role, u.created_at, 
                    c.id as stylist_id, c.alias, c.telephone, c.deplacement_pref, c.adresse_studio
@@ -692,17 +682,14 @@ def delete_personnel(user_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        # Check if the user is a Barber (Agent)
         cursor.execute("SELECT coiffeuse_id FROM users WHERE id = %s", (user_id,))
         row = cursor.fetchone()
         
         if row and row[0]:
             coiffeuse_id = row[0]
-            # Delete both the login and the public profile
             cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
             cursor.execute("DELETE FROM coiffeuses WHERE id = %s", (coiffeuse_id,))
         else:
-            # Just delete the Admin account
             cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
             
         conn.commit()
@@ -834,6 +821,7 @@ def admin_catalog():
         nom = request.form.get("nom")
         categorie_slug = request.form.get("categorie")
         description = request.form.get("description")
+        variations_str = request.form.get("variations", "")
         
         image_url = ""
         if 'image_file' in request.files:
@@ -845,12 +833,25 @@ def admin_catalog():
                 image_url = f"/{filepath}".replace("\\", "/")
 
         try:
+            # Insert the Service
             cursor.execute("""
                     INSERT INTO services (nom, description, categorie, image_url)
-                    VALUES (%s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s) RETURNING id
                 """, (nom, description, categorie_slug, image_url))
+            service_id = cursor.fetchone()['id']
+            
+            # Process and Insert Variations
+            var_list = [v.strip() for v in variations_str.split(',')] if variations_str else []
+            var_list = [v for v in var_list if v] # Remove empties
+            
+            if not var_list:
+                var_list = ["Standard"] # Fallback if none provided
+                
+            for v in var_list:
+                cursor.execute("INSERT INTO service_variations (service_id, nom) VALUES (%s, %s)", (service_id, v))
+
             conn.commit()
-            flash(f"Le service a été ajouté !", "success")
+            flash(f"Le service et ses variations ont été ajoutés !", "success")
         except Exception as e:
             conn.rollback()
             print(f"Catalog Error: {e}")
@@ -861,7 +862,16 @@ def admin_catalog():
     try:
         cursor.execute("SELECT nom, slug FROM categories ORDER BY id;")
         categories = cursor.fetchall()
-        cursor.execute("SELECT id, nom, categorie, description, image_url FROM services ORDER BY categorie, nom;")
+        
+        # Fetch Services WITH their variations grouped as a string for display
+        cursor.execute("""
+            SELECT s.id, s.nom, s.categorie, s.description, s.image_url, 
+                   string_agg(v.nom, ', ') as variations
+            FROM services s
+            LEFT JOIN service_variations v ON s.id = v.service_id
+            GROUP BY s.id
+            ORDER BY s.categorie, s.nom;
+        """)
         services = cursor.fetchall()
     except Exception as e:
         print(f"Fetch Error: {e}")
@@ -884,18 +894,22 @@ def admin_assign_skills():
 
     if request.method == "POST":
         coiffeuse_id = request.form.get("coiffeuse_id")
-        service_id = request.form.get("service_id")
+        variation_id = request.form.get("variation_id")
         prix = request.form.get("prix")
 
         try:
+            # We must fetch the correct service_id for this variation
+            cursor.execute("SELECT service_id FROM service_variations WHERE id = %s", (variation_id,))
+            service_id = cursor.fetchone()['service_id']
+
             cursor.execute("""
-                INSERT INTO coiffeuse_services (coiffeuse_id, service_id, prix)
-                VALUES (%s, %s, %s)
-                ON CONFLICT (coiffeuse_id, service_id) 
+                INSERT INTO coiffeuse_services (coiffeuse_id, service_id, variation_id, prix)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (coiffeuse_id, variation_id) 
                 DO UPDATE SET prix = EXCLUDED.prix;
-            """, (coiffeuse_id, service_id, prix))
+            """, (coiffeuse_id, service_id, variation_id, prix))
             conn.commit()
-            flash("Compétence mise à jour !", "success")
+            flash("Tarif mis à jour pour cette variation !", "success")
         except Exception as e:
             conn.rollback()
             print(f"Assign Error: {e}")
@@ -905,20 +919,30 @@ def admin_assign_skills():
 
     cursor.execute("SELECT id, alias FROM coiffeuses ORDER BY alias;")
     stylists = cursor.fetchall()
-    cursor.execute("SELECT id, nom FROM services ORDER BY nom;")
-    services = cursor.fetchall()
+    
+    # Fetch variations to populate the dropdown
     cursor.execute("""
-        SELECT c.alias, s.nom, cs.prix 
+        SELECT v.id, s.nom as service_nom, v.nom as variation_nom 
+        FROM service_variations v 
+        JOIN services s ON v.service_id = s.id 
+        ORDER BY s.nom, v.nom;
+    """)
+    variations = cursor.fetchall()
+    
+    # Fetch current assignments
+    cursor.execute("""
+        SELECT c.alias, s.nom as service_nom, v.nom as variation_nom, cs.prix 
         FROM coiffeuse_services cs
         JOIN coiffeuses c ON cs.coiffeuse_id = c.id
         JOIN services s ON cs.service_id = s.id
-        ORDER BY c.alias;
+        JOIN service_variations v ON cs.variation_id = v.id
+        ORDER BY c.alias, s.nom, v.nom;
     """)
     current_assignments = cursor.fetchall()
 
     cursor.close()
     conn.close()
-    return render_template("admin/assign.html", stylists=stylists, services=services, assignments=current_assignments)
+    return render_template("admin/assign.html", stylists=stylists, variations=variations, assignments=current_assignments)
 
 if __name__ == "__main__":
     app.run(debug=True)

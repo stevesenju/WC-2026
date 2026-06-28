@@ -40,7 +40,10 @@
                 </div>
                 <div class="appt-body">
                     <p><strong>Client:</strong> {{ appt.client_nom }} ({{ appt.client_telephone }})</p>
-                    <p><strong>Service:</strong> {{ appt.service_name }} ({{ appt.prix_total }}$)</p>
+                    
+                    <!-- NEW: Displays Service AND Variation! -->
+                    <p><strong>Service:</strong> {{ appt.service_name }} {% if appt.variation_nom %}({{ appt.variation_nom }}){% endif %} - ({{ appt.prix_total }}$)</p>
+                    
                     {% if role in ['SuperAdmin', 'Admin'] %}<p><strong>Coiffeuse:</strong> {{ appt.stylist_name }}</p>{% endif %}
                     
                     {% if appt.transport_req %}
@@ -82,7 +85,10 @@
                 </div>
                 <div class="appt-body">
                     <p><strong>Client:</strong> {{ appt.client_nom }} ({{ appt.client_telephone }})</p>
-                    <p><strong>Service:</strong> {{ appt.service_name }} (Reste à payer: {{ appt.prix_total - 5 }}$)</p>
+                    
+                    <!-- NEW: Displays Service AND Variation! -->
+                    <p><strong>Service:</strong> {{ appt.service_name }} {% if appt.variation_nom %}({{ appt.variation_nom }}){% endif %} - (Reste à payer: {{ appt.prix_total - 5 }}$)</p>
+                    
                     {% if role in ['SuperAdmin', 'Admin'] %}<p><strong>Coiffeuse:</strong> {{ appt.stylist_name }}</p>{% endif %}
                     
                     {% if appt.transport_req %}
@@ -121,7 +127,10 @@
                     <tr style="opacity: 0.7;">
                         <td>{{ appt.date_jour.strftime('%d/%m/%Y') }}</td>
                         <td>{{ appt.client_nom }}</td>
-                        <td>{{ appt.service_name }}</td>
+                        
+                        <!-- NEW: Displays Service AND Variation! -->
+                        <td>{{ appt.service_name }} {% if appt.variation_nom %}<em>({{ appt.variation_nom }})</em>{% endif %}</td>
+                        
                         <td>
                             {% if appt.statut == 'Annule' %}
                                 <span style="color: #ff4c4c; font-weight: bold;">Annulé</span>
